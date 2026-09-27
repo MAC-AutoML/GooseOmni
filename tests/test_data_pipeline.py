@@ -21,6 +21,7 @@ from gooseomni.data_pipeline.stages import (
     stage_names,
     validate_judgement,
 )
+from gooseomni.data_pipeline.v2 import _has_human_verified_gold
 
 
 def _config(tmp_path: Path, duplicate: bool = False) -> Path:
@@ -196,6 +197,16 @@ def test_codex_cannot_emit_human_verified() -> None:
         "gpt-5.6-sol",
     )
     assert result["final_value"]["gold_source"] == "model_verified"
+
+
+def test_human_verified_provenance_text_is_not_a_gold_source() -> None:
+    assert not _has_human_verified_gold(
+        {
+            "gold_source": "model_verified",
+            "human_verified_scope": "legacy human_verified review note",
+        }
+    )
+    assert _has_human_verified_gold({"gold_source": "human_verified"})
 
 
 def test_codex_judgement_fails_closed_on_unknown_evidence() -> None:
