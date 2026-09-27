@@ -37,6 +37,19 @@ def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
             handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
 
 
+def _has_human_verified_gold(value: Any) -> bool:
+    """Reject a human gold source while allowing provenance text to remain."""
+    if isinstance(value, dict):
+        return any(
+            (key in {"gold_source", "recommended_gold_source"} and item == "human_verified")
+            or _has_human_verified_gold(item)
+            for key, item in value.items()
+        )
+    if isinstance(value, list):
+        return any(_has_human_verified_gold(item) for item in value)
+    return False
+
+
 def _model_verified(value: Any) -> Any:
     if isinstance(value, dict):
         result = {
@@ -69,7 +82,11 @@ def _rewrite_model_provenance(root: Path) -> int:
     for path in sorted(root.rglob("*.json")):
         if path.name == "manifest.json":
             continue
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value = (
+            read_jsonl(path)
+            if path.suffix == ".jsonl"
+            else json.loads(path.read_text(encoding="utf-8"))
+        )
         converted = _model_verified(value)
         if converted != value:
             write_json(path, converted)
@@ -257,7 +274,12 @@ def validate_v2(root: Path, probe_media: bool = True) -> dict[str, Any]:
     for path in sorted(root.rglob("*.json*")):
         if path.name == "manifest.json":
             continue
-        if "human_verified" in path.read_text(encoding="utf-8"):
+        value = (
+            read_jsonl(path)
+            if path.suffix == ".jsonl"
+            else json.loads(path.read_text(encoding="utf-8"))
+        )
+        if _has_human_verified_gold(value):
             issues.append(
                 f"automatic v2 contains human_verified: {path.relative_to(root)}"
             )
