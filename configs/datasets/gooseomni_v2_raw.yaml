@@ -1,0 +1,31 @@
+version: gooseomni_v2_raw_roll
+games:
+  - game_id: g001
+    players:
+      - player_id: Gemini
+        video_path: data/source_videos/video_Gemini_merged.mp4
+      - player_id: baile
+        video_path: data/source_videos/video_白乐___【Gemini_鹅鸭杀..._0.mp4
+      - player_id: beigang
+        video_path: data/source_videos/video_北港___【Gemini_鹅鸭杀..._0.mp4
+      - player_id: mojiang
+        video_path: data/source_videos/video_末将___【Gemini_鹅鸭杀..._0.mp4
+      - player_id: saoyi
+        video_path: data/source_videos/video_骚易___【Gemini_鹅鸭杀..._0.mp4
+      - player_id: xiaolu
+        video_path: data/source_videos/video_小鹿___【Gemini_鹅鸭杀..._0.mp4
+    valid_range: [0, null]
+    excluded_ranges: []
+models:
+  perception: qwen3_omni
+  judge: gpt-5.6-sol
+outputs:
+  run_root: runs/gooseomni_v2_raw_release
+  benchmark_root: benchmark/gooseomni_v2_raw_release
+dataset_root: data/gooseomni
+cache:
+  sync_offsets: data/processed/sync_offsets.json
+  segments: data/gooseomni/segments.json
+  perception: annotations/pov_events_manual_sync_v1
+  oracle_ledger: annotations/oracle_ledger
+  review_benchmark: benchmark/gooseomni_v1

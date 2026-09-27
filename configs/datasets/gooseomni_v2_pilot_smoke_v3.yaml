@@ -1,0 +1,32 @@
+version: gooseomni_v2_pilot
+pipeline: strict_tom_pilot
+games:
+  - game_id: g001
+    players:
+      - {player_id: Gemini, video_path: data/source_videos/video_Gemini_merged.mp4}
+      - {player_id: baile, video_path: 'data/source_videos/video_白乐___【Gemini_鹅鸭杀..._0.mp4'}
+      - {player_id: beigang, video_path: 'data/source_videos/video_北港___【Gemini_鹅鸭杀..._0.mp4'}
+      - {player_id: mojiang, video_path: 'data/source_videos/video_末将___【Gemini_鹅鸭杀..._0.mp4'}
+      - {player_id: saoyi, video_path: 'data/source_videos/video_骚易___【Gemini_鹅鸭杀..._0.mp4'}
+      - {player_id: xiaolu, video_path: 'data/source_videos/video_小鹿___【Gemini_鹅鸭杀..._0.mp4'}
+    valid_range: [1680, 1710]
+    excluded_ranges: []
+models: {perception: qwen3_omni, judge: gpt-5.6-sol}
+alignment:
+  reference_player: Gemini
+  minimum_anchors_per_episode: 3
+  median_residual_limit_sec: 1.0
+  p95_residual_limit_sec: 2.0
+  minimum_anchor_confidence: 0.15
+perception: {dual_pass: true, speaker_confidence_min: 0.85}
+pilot_gates: {minimum_episodes: 1, minimum_trials_per_layer: 1}
+outputs:
+  run_root: runs/gooseomni_v2_pilot_smoke_v3
+  benchmark_root: benchmark/gooseomni_v2_pilot_smoke_v3
+registry:
+  frozen_diagnostic_run: runs/codex_direct_review_full_v4
+  frozen_diagnostic_label: weak_epistemic_diagnostic
+  leaderboard_eligible: false
+cache:
+  alignment: runs/gooseomni_v2_pilot_smoke/artifacts/alignment.json
+  boundary_candidates: runs/gooseomni_v2_pilot_smoke/annotations/boundary_candidates

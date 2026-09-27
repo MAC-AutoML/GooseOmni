@@ -1,0 +1,14 @@
+{
+  "FB_strong": "C must reconstruct other player's concrete pre-reveal belief.",
+  "FB_weak": "C must identify whether other player knew hidden truth at cutoff.",
+  "PT_strong": "D must predict listener reaction consistent with later evidence when available.",
+  "PT_weak": "D must distinguish speaker and listener information states.",
+  "RC_strong": "B must match A on main belief label and key evidence class.",
+  "RC_weak": "B must not attribute hidden revealed truth to target_player at cutoff.",
+  "claim_verification_global": "Model identifies whether a claim is globally supported, contradicted, unverified, or ambiguous.",
+  "claim_verification_local": "Model distinguishes global claim truth from what the target player could know at cutoff.",
+  "evidence_support_rate": "Fraction of scored groups that avoid forbidden evidence and cite only allowed evidence classes.",
+  "json_parse_success": "Response can be parsed as JSON.",
+  "perspective_leakage": "Model references withheld_evidence_ids while simulating a limited perspective.",
+  "schema_validation_success": "Parsed response matches the probe's expected output schema sufficiently for scoring."
+}

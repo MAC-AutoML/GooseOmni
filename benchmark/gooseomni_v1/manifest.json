@@ -1,0 +1,229 @@
+{
+  "name": "gooseomni_v1",
+  "source_pass": "pass248_death_skill_scope_audit",
+  "file_count": 41,
+  "total_bytes": 42974746,
+  "layout": {
+    "public": "model-facing benchmark inputs and public reports",
+    "private": "gold and scorer-private answers for local scoring only",
+    "tables": "human-readable and CSV summaries"
+  },
+  "validation": {
+    "line_counts": {
+      "public/leaderboard_core/trials.jsonl": 889,
+      "private/leaderboard_core/hidden_gold.jsonl": 889,
+      "public/raw_video_smoke/raw_video_smoke.jsonl": 48,
+      "public/leaderboard_core/probe_groups_public.jsonl": 276,
+      "public/agentic_midgame_prediction/trials.jsonl": 160,
+      "private/agentic_midgame_prediction/hidden_gold.jsonl": 160
+    },
+    "public_file_leak_hits": []
+  },
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 2474,
+      "sha256": "863cd52f2e9a79b53242d87491058403e6d05d606599ebc02fd0703d1b5f40bb"
+    },
+    {
+      "path": "private/agentic_midgame_prediction/gold.jsonl",
+      "bytes": 115010,
+      "sha256": "d769f54a6d9e2760ee722d735f641df4358f244c128354c470c2bb20a4b35883"
+    },
+    {
+      "path": "private/agentic_midgame_prediction/hidden_gold.jsonl",
+      "bytes": 143286,
+      "sha256": "87155ec7f475e7959c916fa550ba32e26b7d56f55ee828c096a1593d6183174e"
+    },
+    {
+      "path": "private/interactive_diagnostics/hidden_gold.jsonl",
+      "bytes": 602717,
+      "sha256": "f8bc5e00016185715b0a19e306ee2a860540ea2044b35701f65ae7f166f3855e"
+    },
+    {
+      "path": "private/leaderboard_core/gold.jsonl",
+      "bytes": 545767,
+      "sha256": "f5d8d9f2c6b4c8183ad91ef1bdb8a68399b9d620d16e68432873bf97d5277ffc"
+    },
+    {
+      "path": "private/leaderboard_core/hidden_gold.jsonl",
+      "bytes": 2278342,
+      "sha256": "c8df7b514f129ef29a8cbe4b5d6215d1343ec962afa834b9a2fc05d339ed4cb9"
+    },
+    {
+      "path": "private/static_trials/gold.jsonl",
+      "bytes": 592438,
+      "sha256": "65f325b803e6581c3900286169324081906e234beda3a31573926b0271e06aae"
+    },
+    {
+      "path": "private/static_trials/hidden_gold.jsonl",
+      "bytes": 2614819,
+      "sha256": "5f85fe44d5ca1c06b496c26e89a1757089ca959aaaed5ab67674fc43f7ba86cd"
+    },
+    {
+      "path": "public/agentic_midgame_prediction/README.md",
+      "bytes": 992,
+      "sha256": "f31f8ec61fe2513eea014f29436efa93987d8caa56c5e77caae58057cd8ba5cd"
+    },
+    {
+      "path": "public/agentic_midgame_prediction/prompts.jsonl",
+      "bytes": 991881,
+      "sha256": "174064c4d20de0cfeef2cb03c28cb72764c3a1d5ccaf103e6f92d8d65426c76a"
+    },
+    {
+      "path": "public/agentic_midgame_prediction/scoring_rules.json",
+      "bytes": 1054,
+      "sha256": "0899c88510f4ee4d2af91232f7a66b09ae8088c562c42ea948a6a576617c181d"
+    },
+    {
+      "path": "public/agentic_midgame_prediction/summary.json",
+      "bytes": 306,
+      "sha256": "e7e336ba9c2c706e4d3d3f56511912e1c48e0113b5ee8733ddc347ecc3b6f000"
+    },
+    {
+      "path": "public/agentic_midgame_prediction/trials.jsonl",
+      "bytes": 1038619,
+      "sha256": "828e99ad741d2340df9678884328dc2fa58e901d4c09b15b3ae674756f41bbb4"
+    },
+    {
+      "path": "public/interactive_diagnostics/probe_groups_public.jsonl",
+      "bytes": 410293,
+      "sha256": "0952ce87f1b6515283760c31a0b5dea6a290978ea67266a5f72320f99c233779"
+    },
+    {
+      "path": "public/interactive_diagnostics/prompts.jsonl",
+      "bytes": 4442282,
+      "sha256": "4c05d66b47c528963a5cb1cee7417e2823d7ea8048b8173d787fdc2eb29e10f6"
+    },
+    {
+      "path": "public/interactive_diagnostics/scoring_rules.json",
+      "bytes": 1167,
+      "sha256": "484c790216ecd5177c9f2b962fb2402fada866ce70127bf5fa325cec5c91ab61"
+    },
+    {
+      "path": "public/leaderboard_core/README.md",
+      "bytes": 2414,
+      "sha256": "3e79a1a5863581ea835a13c1b246d9fbc63d798120c90351caa08263fc901355"
+    },
+    {
+      "path": "public/leaderboard_core/interactive_prompts.jsonl",
+      "bytes": 4144919,
+      "sha256": "a81213fd60f3b52b918437f4a037463d0aea88d94f3e1e2fba02a0e1ee80ea47"
+    },
+    {
+      "path": "public/leaderboard_core/probe_groups_public.jsonl",
+      "bytes": 410293,
+      "sha256": "0952ce87f1b6515283760c31a0b5dea6a290978ea67266a5f72320f99c233779"
+    },
+    {
+      "path": "public/leaderboard_core/summary.json",
+      "bytes": 225,
+      "sha256": "e658dee9c56c30fad5403f48d11349bc896bba675de3786f7ae91343603231d2"
+    },
+    {
+      "path": "public/leaderboard_core/trials.jsonl",
+      "bytes": 4019087,
+      "sha256": "98dfc8be388b149541dcff88730d8e6ac93440fd6fcfb81dae1bcdfad17a2625"
+    },
+    {
+      "path": "public/raw_video_smoke/raw_video_smoke.jsonl",
+      "bytes": 361717,
+      "sha256": "9ab1f704e3eb8c9a3ebdcb09a7002168d285e810d2caea71247a3a69dc318918"
+    },
+    {
+      "path": "public/reports/annotation_quality.md",
+      "bytes": 120,
+      "sha256": "b1f829fb57f727d3fd92a95f211debffa99f9e832c7de8224b5b5e46e58831c9"
+    },
+    {
+      "path": "public/reports/benchmark_card.md",
+      "bytes": 1951,
+      "sha256": "c87bad275a27c40f58512473b426fd3b6c8caef11285913b548d70f3e4030359"
+    },
+    {
+      "path": "public/reports/diagnostic_quality.md",
+      "bytes": 74,
+      "sha256": "de858afef1745f31971f158e609b8e7a8cc31e4e415f14269dfba0eebdebf5db"
+    },
+    {
+      "path": "public/reports/leaderboard_core_validation.json",
+      "bytes": 724,
+      "sha256": "f0ea637fbf238d1a6dea28dffdf2a6f10fe418f7bdceb87c6d6831d4c5df510e"
+    },
+    {
+      "path": "public/static_trials/input_conditions/global_to_perspective.jsonl",
+      "bytes": 2480774,
+      "sha256": "edbd1f85748c654de18179f983a065ccc199909d1fd1419c99e13ce7619fe1b2"
+    },
+    {
+      "path": "public/static_trials/input_conditions/oracle_truth_revealed.jsonl",
+      "bytes": 1327998,
+      "sha256": "a28d27e22fc32f8059574bec9857321742276052d12318ae2025fe9351e28b60"
+    },
+    {
+      "path": "public/static_trials/input_conditions/public_history_only.jsonl",
+      "bytes": 169009,
+      "sha256": "f378d88bf8117a34757b1cfcc841ec0fc6633e1a6b86a31e691e9a37c776065a"
+    },
+    {
+      "path": "public/static_trials/input_conditions/raw_pov_video.jsonl",
+      "bytes": 4085154,
+      "sha256": "67a6b19f97b59fb9a76f14ddecf1529f62e0a692df51ee5829d51139ba933d16"
+    },
+    {
+      "path": "public/static_trials/input_conditions/speaker_perspective.jsonl",
+      "bytes": 400131,
+      "sha256": "6c3638692070511b955e2c2cc4417e60eedd54f08c8502ea9e5c69d29da9f28f"
+    },
+    {
+      "path": "public/static_trials/input_conditions/specialist_agent.jsonl",
+      "bytes": 4399617,
+      "sha256": "b96788cd68ce2b9a9ddb44fdf0e30975cf61e3a0abfceb57b6b8c16712a3660d"
+    },
+    {
+      "path": "public/static_trials/input_conditions/structured_perspective.jsonl",
+      "bytes": 1813867,
+      "sha256": "0d46e5ae14c1b59ed56e52ca72f06c58b8537837e5f8d0a7aaa2737c842fba95"
+    },
+    {
+      "path": "public/static_trials/input_conditions/target_available_events.jsonl",
+      "bytes": 1244727,
+      "sha256": "d4cec6c2fa5efa5703c0911227ca07c5b3167a03359b995406c5d7acfc68d276"
+    },
+    {
+      "path": "public/static_trials/trials.jsonl",
+      "bytes": 4309879,
+      "sha256": "067cf122ce6b4861c36cbce053f3eab4f795f4788bf1aedbec79cca82d210aef"
+    },
+    {
+      "path": "tables/README.md",
+      "bytes": 10596,
+      "sha256": "dd3f3e5e4b45e686ce5b6d4abe527a81dc11f49b3302d195195c2d538454bbc9"
+    },
+    {
+      "path": "tables/by_input_condition.csv",
+      "bytes": 1208,
+      "sha256": "cbc494e6e3e73b5711f00a01678f36c1ee72c75148282b6eab493ce89cabe1a1"
+    },
+    {
+      "path": "tables/by_probe_type.csv",
+      "bytes": 1208,
+      "sha256": "3f2c8b1afa493232c6efc0ef0f9f3a93fb554d19091bfb8b57e1356a63ecc8b4"
+    },
+    {
+      "path": "tables/by_template.csv",
+      "bytes": 4155,
+      "sha256": "359587645853b6f7871ce75ce2ddca566bba79a65952f997b82169ae21a9727c"
+    },
+    {
+      "path": "tables/dataset_composition.json",
+      "bytes": 2034,
+      "sha256": "2c7e91b1cf5c4116d3063b7d6fbaf93a904c718535f005ad9f90e9203c7aa53f"
+    },
+    {
+      "path": "tables/metric_summary.csv",
+      "bytes": 1418,
+      "sha256": "89e853ffb99ed6dc00c5b574c3b05e6a7a166d62ed5b44a0f57e2e51b1c109bf"
+    }
+  ]
+}

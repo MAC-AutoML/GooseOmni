@@ -1,0 +1,11 @@
+{
+  "by_probe_family": {
+    "E_hidden_world_state_estimation": 40,
+    "F_other_player_current_action_prediction": 40,
+    "G_next_behavior_prediction": 40,
+    "H_deception_state_inference": 40
+  },
+  "gold_source_default": "oracle_seed",
+  "total_trials": 160,
+  "track": "agentic_midgame_prediction"
+}

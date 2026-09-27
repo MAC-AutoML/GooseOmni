@@ -1,0 +1,11 @@
+{
+  "death_skill_overclaim_rate": "Visible death/body/blood is overclaimed as killer, role, faction, duck skill, or mechanism.",
+  "deception_awareness_local": "H probes: local_knowability matches what ego could know from available evidence.",
+  "deception_detection_global": "H probes: global_truth_guess matches scorer-only claim truth.",
+  "hidden_world_state_accuracy": "E probes: oracle_guess event/action category overlaps scorer-only hidden oracle event.",
+  "next_behavior_top1_accuracy": "G probes: top1 future behavior matches actual future event category within prediction window.",
+  "next_behavior_topk_accuracy": "G probes: top-k contains actual future behavior category.",
+  "offscreen_action_accuracy": "F probes: predicted current location/action matches target player's same-cutoff hidden POV event category.",
+  "oracle_overclaim_rate": "Response presents hidden oracle facts as direct ego observation instead of calibrated inference.",
+  "pov_evidence_support_rate": "Cited evidence IDs are allowed by the ego POV input condition."
+}

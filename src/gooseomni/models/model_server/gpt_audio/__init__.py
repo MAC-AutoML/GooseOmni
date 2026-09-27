@@ -1,0 +1,1 @@
+"""GPT Audio adapter."""

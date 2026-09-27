@@ -1,0 +1,124 @@
+# Python-generated files
+__pycache__/
+**/__pycache__/
+._*
+**/._*
+*.py[oc]
+*.pyd
+*.so
+/build/
+dist/
+/wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.python-version
+
+# Local env
+.env
+.env.*
+!.env.example
+!configs/.env.example
+configs/.env
+configs/.env.*
+
+# Local agent/project instructions
+/AGENTS.md
+/docs/local_*.md
+/docs/*_local*.md
+/docs/*_agent*.md
+
+# Private GitHub deploy keys and local SSH material
+/ssh_github/
+/ssh_github/*
+
+# Data and results
+/data/*
+!/data/README.md
+/annotations/
+/artifacts/
+/runs/
+# Generated benchmark workspaces. Frozen v1 and current v2 releases are tracked.
+/benchmark/*
+!/benchmark/gooseomni_v1/
+!/benchmark/gooseomni_v1/**
+!/benchmark/gooseomni_v2/
+!/benchmark/gooseomni_v2/**
+/results/*
+!/results/.gitkeep
+
+# Paper project (local only)
+/ECCV2026_Tianyu/
+
+# Temporary/local experiment dirs
+/temp/
+/d/
+/append/
+run_benchmark_level3.py
+command.md
+
+# Spec workflow
+/.spec-workflow/
+
+# Logs and caches
+*.log
+*.err
+*.tmp
+*.temp
+*.swp
+*.swo
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# Slurm runtime logs
+/configs/slurm/logs/*
+!/configs/slurm/logs/.gitkeep
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.brf
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+*.xdv
+
+# Editor/OS
+.DS_Store
+.idea/
+.vscode/
+
+# Node
+node_modules/
+
+# Vendored artifacts tracked in-repo
+!/vendor/
+!/vendor/wheels/
+!/vendor/wheels/*.whl
+
+# Local OMX state
+.omx/
+
+# Local iterative benchmark patch scripts
+/tmp_pass*.py
+/tmp_pass*_*.py
+/.codex_tmp_sync/
+/__pycache__/
+
+# Local clean benchmark archives; the unpacked clean benchmark directory is tracked intentionally.
+/release/*.tar
+/release/*.tar.gz
+/release/*.zip

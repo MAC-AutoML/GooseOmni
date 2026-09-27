@@ -1,0 +1,26 @@
+{
+  "core_counts": {
+    "interactive_prompts.jsonl": {
+      "A_pre_reveal_belief": 276,
+      "B_post_reveal_reconstruct_previous_belief": 276,
+      "C_other_agent_false_belief": 276,
+      "D_perspective_taking_prediction": 61
+    },
+    "trials.jsonl": {
+      "A_pre_reveal_belief": 276,
+      "B_post_reveal_reconstruct_previous_belief": 276,
+      "C_other_agent_false_belief": 276,
+      "D_perspective_taking_prediction": 61
+    }
+  },
+  "core_excluded_adjudicated": 83,
+  "diagnostic_adjudicated": 83,
+  "excluded_D_ungrounded": 83,
+  "expected_core_prompt_count": 889,
+  "full_D_total": 144,
+  "issue_count": 0,
+  "issues": [],
+  "ok": true,
+  "summary_source_pass_matches_current": true,
+  "trial_count": 889
+}

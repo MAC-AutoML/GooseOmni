@@ -1,0 +1,23 @@
+version: gooseomni_v2
+source_benchmark: benchmark/gooseomni_v1
+dataset_root: data/gooseomni
+
+games:
+  - game_id: g001
+    players:
+      - {player_id: Gemini, video_path: data/raw/g001/Gemini.mp4}
+      - {player_id: baile, video_path: data/raw/g001/baile.mp4}
+      - {player_id: beigang, video_path: data/raw/g001/beigang.mp4}
+      - {player_id: mojiang, video_path: data/raw/g001/mojiang.mp4}
+      - {player_id: saoyi, video_path: data/raw/g001/saoyi.mp4}
+      - {player_id: xiaolu, video_path: data/raw/g001/xiaolu.mp4}
+    valid_range: [0, null]
+    excluded_ranges: []
+
+models:
+  perception: qwen3_omni
+  judge: gpt-5.6-sol
+
+outputs:
+  run_root: runs/gooseomni_v2
+  benchmark_root: benchmark/gooseomni_v2

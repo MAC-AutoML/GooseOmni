@@ -1,0 +1,176 @@
+# GooseOmni global config (do not store sensitive values)
+
+runtime:
+  max_retries: 5
+  api_max_retries: 2
+  api_retry_delay: 1.0
+  api_request_timeout: 120
+  request_delay: 0.0
+  gpu_ids: []
+  frame_interval_sec: 1
+  max_frames: null
+
+models:
+  defaults:
+    temperature: 0.3
+    top_p: 1.0
+    max_tokens: 256
+  gpt4o:
+    model_name: "gpt-4o"
+    max_frames: 48
+    max_tokens: 2048
+    temperature: 0.3
+  gpt_audio:
+    model_name: "gpt-audio-2025-08-28"
+    max_tokens: 2048
+    temperature: 0.3
+  gemini_2_5_flash:
+    model_name: "gemini-2.5-flash"
+    max_tokens: 9000
+    temperature: 0.3
+  gemini_2_5_pro:
+    model_name: "gemini-2.5-pro"
+    max_tokens: 9000
+    temperature: 0.3
+  gemini_3_flash_preview:
+    model_name: "gemini-3-flash-preview"
+    max_tokens: 9000
+    temperature: 0.3
+  gemini_3_pro_preview:
+    model_name: "gemini-3-pro-preview"
+    max_tokens: 9000
+    temperature: 0.3
+  qwen2_5_omni:
+    model_path: "/publicssd/xty/models/Qwen2.5-Omni-7B"
+    max_tokens: 256
+    temperature: 0.3
+    use_audio_in_video: true
+    num_video_frames: 256
+    gpu_ids: []
+    host: "0.0.0.0"
+    port: 5089
+    server_url: "http://127.0.0.1:5089"
+    user_prompt: ""
+  qwen3_omni:
+    model_path: "/publicssd/xty/models/Qwen3-Omni-30B-A3B-Instruct"
+    max_tokens: 256
+    temperature: 0.3
+    use_audio_in_video: true
+    num_video_frames: 256
+    gpu_ids: []
+    host: "0.0.0.0"
+    port: 5090
+    judge_model_path: ""
+    server_url: "http://127.0.0.1:5090"
+    user_prompt: ""
+  qwen3_omni_thinking:
+    model_path: "/publicssd/xty/models/Qwen3-Omni-30B-A3B-Thinking"
+    max_tokens: 8192
+    temperature: 0.3
+    use_audio_in_video: true
+    num_video_frames: 256
+    gpu_ids: []
+    host: "0.0.0.0"
+    port: 5091
+    server_url: "http://127.0.0.1:5091"
+    user_prompt: ""
+  miniomni_2:
+    model_path: "/publicssd/xty/models/mini-omni2"
+    temperature: 0.3
+    top_p: 1.0
+    use_audio_in_video: true
+    num_video_frames: 1  # only 1 frame (miniomni_2 currently uses single-frame + audio)
+    gpu_ids: []
+    host: "0.0.0.0"
+    port: 5092
+    server_url: "http://127.0.0.1:5092"
+    user_prompt: ""
+  omnivinci:
+    model_path: "/publicssd/xty/models/omnivinci"
+    max_new_tokens: 4096
+    use_audio_in_video: true
+    num_video_frames: 256
+    gpu_ids: []
+    host: "0.0.0.0"
+    port: 5091
+    server_url: "http://127.0.0.1:5091"
+    user_prompt: ""
+  vita_1_5:
+    model_path: "/publicssd/xty/models/VITA-1.5"
+    vision_tower_path: "/publicssd/xty/models/cache/models--OpenGVLab--InternViT-300M-448px/snapshots/fe158954b3b9bbc92a37fd24a78912173910558a"
+    audio_encoder_path: "/publicssd/xty/models/VITA-1.5/audio-encoder-Qwen2-7B-1107-weight-base-11wh-tunning"
+    max_tokens: 256
+    temperature: 0.3
+    gpu_ids: []
+    host: "0.0.0.0"
+    port: 5093
+    server_url: "http://127.0.0.1:5093"
+    user_prompt: ""
+  baichuan_omni_1_5:
+    model_path: "/publicssd/xty/models/Baichuan-Omni-1d5"
+    max_tokens: 256
+    temperature: 0.3
+    use_audio_in_video: true
+    # Native audio is limited to 30s by the model configuration.
+    gpu_ids: []
+    host: "0.0.0.0"
+    port: 5094
+    server_url: "http://127.0.0.1:5094"
+    user_prompt: ""
+  ming:
+    model_path: "/publicssd/xty/models/Ming-flash-omni-2.0"
+    python_bin: ".venv-ming/bin/python"
+    max_tokens: 256
+    temperature: 0.3
+    use_audio_in_video: true
+    gpu_ids: []
+    host: "0.0.0.0"
+    port: 5095
+    server_url: "http://127.0.0.1:5095"
+    user_prompt: ""
+
+prompts:
+  answer_format: "Answer ONLY with the option letter (A, B, C, or D). Do not include any other text."
+
+benchmark:
+  level1:
+    model: "qwen3_omni"
+    dataset_path: ""
+    video_dir: ""
+    output_dir: ""
+    output_pattern: "results_{model}_level1_{modality}_{asr}.json"
+    log_dir: ""
+    modality: "at"  # avt (audio+video), amv (audio + masked video), vt (video-only), at (audio-only)
+    include_asr: false
+    system_prompt: "You are a precise video-audio reasoning assistant. You must answer ONLY with the option letter (A, B, C, or D)."
+    user_prompt: "Please carefully analyze the video, paying attention to the temporal relationship between the audio and visual content."
+    max_retries: 5
+    retry_delay: 3
+    num_workers: 8
+  level2:
+    model: "qwen3_omni"
+    dataset_path: ""
+    video_dir: ""
+    output_dir: ""
+    output_pattern: "results_{model}_level2_{modality}.json"
+    log_dir: ""
+    modality: "avt"
+    system_prompt: ""
+    user_prompt: ""
+    judge_model: "gpt4o"
+    max_retries: 5
+    retry_delay: 3
+    num_workers: 8
+  level3:
+    model: ""
+    dataset_path: ""
+    video_dir: ""
+    output_dir: ""
+    output_pattern: "results_{model}_level3_{modality}.json"
+    log_dir: ""
+    modality: "avt"
+    system_prompt: ""
+    user_prompt: ""
+    max_retries: 5
+    retry_delay: 3
+    num_workers: 8

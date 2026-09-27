@@ -1,0 +1,106 @@
+[project]
+name = "gooseomni"
+version = "0.1.0"
+description = "Multimodal social reasoning, annotation, and evaluation framework"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "numpy>=2,<2.3.0",
+    "pandas>=2.3.1",
+    "pydantic>=2.10",
+    "pyyaml>=6.0.2",
+    "python-dotenv>=1.0",
+    "requests>=2.32",
+    "flask>=3.1.1",
+]
+
+[project.scripts]
+gooseomni = "gooseomni.cli:main"
+
+[project.optional-dependencies]
+api = [
+    "google-genai>=1.49.0",
+    "httpx[socks]>=0.28.1",
+    "openai>=1.87.0,<=1.90.0",
+]
+media = [
+    "audioread>=3.0.1",
+    "av>=15.0.0",
+    "decord>=0.6.0",
+    "librosa>=0.11.0",
+    "moviepy>=2.2.1",
+    "opencv-python>=4.12.0.88",
+    "openpyxl>=3.1.5",
+    "pillow>=11.0",
+    "soundfile>=0.13.1",
+]
+qwen = [
+    "accelerate>=1.1.0",
+    "einops>=0.8.1",
+    "qwen-omni-utils>=0.0.8",
+    "torch==2.7.1",
+    "torchaudio==2.7.1",
+    "torchvision==0.22.1",
+    "transformers==4.57.1",
+]
+miniomni = [
+    "openai-clip>=1.0.1",
+    "snac>=1.2.1",
+    "torch==2.7.1",
+    "torchaudio==2.7.1",
+]
+omnivinci = ["accelerate>=1.1.0", "torch==2.7.1", "transformers==4.57.1"]
+vita = ["deepspeed>=0.18.0", "torch==2.7.1", "transformers==4.57.1"]
+baichuan = ["accelerate>=1.1.0", "torch==2.7.1", "transformers==4.57.1"]
+ming = [
+    "diffusers>=0.35.2",
+    "omegaconf>=2.3.0",
+    "torch==2.7.1",
+    "transformers==4.57.1",
+]
+
+[build-system]
+requires = ["setuptools>=77.0.3,<80"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[[tool.uv.index]]
+name = "tsinghua"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
+
+[tool.uv.sources]
+decord = { path = "vendor/wheels/decord-0.6.0-py3-none-manylinux2010_x86_64.whl" }
+transformers = { git = "https://github.com/huggingface/transformers" }
+s2wrapper = { git = "https://github.com/bfshi/scaling_on_scales.git" }
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+select = ["E", "F", "W", "I", "B", "C4", "UP"]
+ignore = ["E501", "B008"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]
+norecursedirs = ["vendor", "*.egg-info"]
