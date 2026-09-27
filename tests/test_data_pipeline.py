@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from gooseomni.benchmark.decrypto_export import build_decrypto_diagnostics
+from gooseomni.data_pipeline import raw_stages
 from gooseomni.data_pipeline.config import load_data_config
 from gooseomni.data_pipeline.ledger_seed import build_seed_ledger
 from gooseomni.data_pipeline.local_review import (
@@ -54,6 +55,24 @@ def test_data_config_accepts_manifest_players(tmp_path: Path) -> None:
         "player-b",
     ]
     assert config.validate_inputs() == []
+
+
+def test_stage_result_hashes_shared_source_once(tmp_path: Path, monkeypatch) -> None:
+    output = tmp_path / "output"
+    output.mkdir()
+    (output / "payload.json").write_text("{}", encoding="utf-8")
+    calls: list[Path] = []
+
+    def fake_hash(path: Path) -> str:
+        calls.append(path)
+        return "hash"
+
+    monkeypatch.setattr(raw_stages, "sha256_tree", fake_hash)
+
+    result = raw_stages._result("qwen_live", output, output)
+
+    assert result["input_hash"] == result["output_hash"] == "hash"
+    assert calls == [output]
 
 
 def test_strict_pilot_uses_new_stage_sequence(tmp_path: Path) -> None:

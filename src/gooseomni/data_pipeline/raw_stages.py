@@ -10,6 +10,7 @@ from typing import Any
 from gooseomni.annotation.postprocess import (
     build_information_states,
     build_meeting_utterances,
+    load_pov_event_files,
     merge_global_events,
 )
 from gooseomni.benchmark.decrypto_export import (
@@ -45,12 +46,17 @@ def _copy_tree(source: Path, target: Path) -> None:
 
 
 def _result(mode: str, source: Path, target: Path, **extra: Any) -> dict[str, Any]:
+    input_hash = sha256_tree(source)
     return {
         "mode": mode,
         "source": str(source),
         "target": str(target),
-        "input_hash": sha256_tree(source),
-        "output_hash": sha256_tree(target),
+        "input_hash": input_hash,
+        "output_hash": (
+            input_hash
+            if source.resolve() == target.resolve()
+            else sha256_tree(target)
+        ),
         **extra,
     }
 
@@ -173,9 +179,10 @@ def event_fusion_stage(context: Any) -> dict[str, Any]:
     utterances = target / "meeting_utterances.json"
     events = target / "global_events.json"
     states = target / "information_states.json"
-    build_meeting_utterances(source, utterances)
-    merge_global_events(source, events)
-    build_information_states(source, states)
+    loaded_events = load_pov_event_files(source)
+    build_meeting_utterances(source, utterances, loaded_events)
+    merge_global_events(source, events, loaded_events)
+    build_information_states(source, states, loaded_events)
     return _result("deterministic_rebuild", source, target)
 
 

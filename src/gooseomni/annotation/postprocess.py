@@ -17,10 +17,12 @@ def load_pov_event_files(input_dir: Path) -> list[dict[str, Any]]:
 
 
 def build_meeting_utterances(
-    pov_events_dir: Path, output_path: Path
+    pov_events_dir: Path,
+    output_path: Path,
+    events: list[dict[str, Any]] | None = None,
 ) -> list[Utterance]:
     utterances: list[Utterance] = []
-    for event in load_pov_event_files(pov_events_dir):
+    for event in events if events is not None else load_pov_event_files(pov_events_dir):
         text = event.get("description", "")
         if "会议" not in text and "发言" not in text and "说" not in text:
             continue
@@ -43,10 +45,12 @@ def build_meeting_utterances(
 
 
 def build_information_states(
-    pov_events_dir: Path, output_path: Path
+    pov_events_dir: Path,
+    output_path: Path,
+    events: list[dict[str, Any]] | None = None,
 ) -> list[InformationState]:
     grouped: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
-    for event in load_pov_event_files(pov_events_dir):
+    for event in events if events is not None else load_pov_event_files(pov_events_dir):
         grouped[(event["game_id"], event["player_id"])].append(event)
 
     states: list[InformationState] = []
@@ -70,8 +74,12 @@ def build_information_states(
     return states
 
 
-def merge_global_events(pov_events_dir: Path, output_path: Path) -> list[GlobalEvent]:
-    events = load_pov_event_files(pov_events_dir)
+def merge_global_events(
+    pov_events_dir: Path,
+    output_path: Path,
+    events: list[dict[str, Any]] | None = None,
+) -> list[GlobalEvent]:
+    events = events if events is not None else load_pov_event_files(pov_events_dir)
     global_events: list[GlobalEvent] = []
     for _index, event in enumerate(events):
         global_events.append(
