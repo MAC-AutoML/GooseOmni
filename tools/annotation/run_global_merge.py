@@ -1,39 +1,26 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
-import sys
 from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from gooseomni.benchmark.backends import create_backend
 from gooseomni.benchmark.io import load_segments_jsonl, write_json
 from gooseomni.benchmark.pipeline import (
-    annotation_path,
     annotate_text_with_segment_context,
+    annotation_path,
     append_review_items,
     filter_segments,
     load_json_if_exists,
+    normalize_global_event_payload,
     parse_json_array,
     parse_partial_json_array_objects,
-    normalize_global_event_payload,
     retry_prompt_for_compact_json,
     save_error,
 )
 from gooseomni.benchmark.prompts import global_merge_prompt
 from gooseomni.benchmark.schema import GlobalEvent, GlobalEventAnnotation
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 EVENT_FIELDS = {
@@ -78,7 +65,9 @@ UTTERANCE_FIELDS = {
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Merge 6-POV annotations into global events.")
+    parser = argparse.ArgumentParser(
+        description="Merge 6-POV annotations into global events."
+    )
     parser.add_argument("--dataset-root", default="data/gooseomni", type=Path)
     parser.add_argument("--output-root", default=None, type=Path)
     parser.add_argument("--segments-jsonl", default=None, type=Path)
@@ -149,11 +138,15 @@ def _load_stage_annotations(
 ) -> list[dict]:
     rows: list[dict] = []
     for pov in segment.povs:
-        payload = load_json_if_exists(annotation_path(dataset_root, stage, segment, pov.player_id, output_root))
+        payload = load_json_if_exists(
+            annotation_path(dataset_root, stage, segment, pov.player_id, output_root)
+        )
         if payload is None:
             continue
         if stage == "pov_events":
-            items = [_compact_item(item, EVENT_FIELDS) for item in payload.get("events", [])]
+            items = [
+                _compact_item(item, EVENT_FIELDS) for item in payload.get("events", [])
+            ]
             rows.append(
                 {
                     "player_id": payload.get("player_id", pov.player_id),
@@ -161,7 +154,10 @@ def _load_stage_annotations(
                 }
             )
         elif stage == "utterances":
-            items = [_compact_item(item, UTTERANCE_FIELDS) for item in payload.get("utterances", [])]
+            items = [
+                _compact_item(item, UTTERANCE_FIELDS)
+                for item in payload.get("utterances", [])
+            ]
             rows.append(
                 {
                     "player_id": payload.get("player_id", pov.player_id),
@@ -175,7 +171,13 @@ def _load_stage_annotations(
 
 def main() -> None:
     args = parse_args()
-    backend = create_backend(args.backend, model=args.model, api_key_env=args.api_key_env, base_url=args.base_url, server_url=args.server_url)
+    backend = create_backend(
+        args.backend,
+        model=args.model,
+        api_key_env=args.api_key_env,
+        base_url=args.base_url,
+        server_url=args.server_url,
+    )
     segments_path = args.segments_jsonl or args.dataset_root / "segments.jsonl"
     stats = {"ok": 0, "error": 0, "skipped": 0}
     for segment in filter_segments(
@@ -186,31 +188,50 @@ def main() -> None:
         skip=args.skip,
         stride=args.stride,
     ):
-        output_path = annotation_path(args.dataset_root, "global_events", segment, annotation_root=args.output_root)
+        output_path = annotation_path(
+            args.dataset_root,
+            "global_events",
+            segment,
+            annotation_root=args.output_root,
+        )
         if output_path.exists() and args.resume and not args.overwrite:
             stats["skipped"] += 1
             continue
-        pov_events = _load_stage_annotations(args.dataset_root, args.output_root, "pov_events", segment)
-        utterances = _load_stage_annotations(args.dataset_root, args.output_root, "utterances", segment)
+        pov_events = _load_stage_annotations(
+            args.dataset_root, args.output_root, "pov_events", segment
+        )
+        utterances = _load_stage_annotations(
+            args.dataset_root, args.output_root, "utterances", segment
+        )
         prompt = global_merge_prompt(segment, pov_events, utterances)
         raw_response = ""
         try:
-            raw_response = annotate_text_with_segment_context(backend, prompt, args.dataset_root, segment)
+            raw_response = annotate_text_with_segment_context(
+                backend, prompt, args.dataset_root, segment
+            )
             try:
                 parsed_items = parse_json_array(raw_response)
             except Exception as first_error:  # noqa: BLE001
                 prompt = retry_prompt_for_compact_json(prompt, max_items=3)
-                retry_response = annotate_text_with_segment_context(backend, prompt, args.dataset_root, segment)
+                retry_response = annotate_text_with_segment_context(
+                    backend, prompt, args.dataset_root, segment
+                )
                 try:
                     parsed_items = parse_json_array(retry_response)
                     raw_response = retry_response
                 except Exception as second_error:  # noqa: BLE001
-                    recovered = parse_partial_json_array_objects(retry_response, max_items=3)
+                    recovered = parse_partial_json_array_objects(
+                        retry_response, max_items=3
+                    )
                     if not recovered:
-                        recovered = parse_partial_json_array_objects(raw_response, max_items=3)
+                        recovered = parse_partial_json_array_objects(
+                            raw_response, max_items=3
+                        )
                     if recovered:
                         parsed_items = recovered
-                        raw_response = retry_response if "{" in retry_response else raw_response
+                        raw_response = (
+                            retry_response if "{" in retry_response else raw_response
+                        )
                     else:
                         raw_response = (
                             "FIRST_ERROR:\n"
@@ -224,7 +245,9 @@ def main() -> None:
                         )
                         raise ValueError(raw_response) from second_error
             events = [
-                GlobalEvent.model_validate(normalize_global_event_payload(item, segment, index))
+                GlobalEvent.model_validate(
+                    normalize_global_event_payload(item, segment, index)
+                )
                 for index, item in enumerate(parsed_items, start=1)
             ]
             annotation = GlobalEventAnnotation(

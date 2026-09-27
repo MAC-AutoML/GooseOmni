@@ -1,28 +1,24 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
-import sys
 from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from gooseomni.benchmark.backends import create_backend
 from gooseomni.benchmark.io import load_segments_jsonl, write_json
-from gooseomni.benchmark.pipeline import annotate_text_with_segment_context, annotation_path, filter_segments, load_json_if_exists, normalize_cutoff_payload, parse_json_object, save_error, validate_player_id
+from gooseomni.benchmark.pipeline import (
+    annotate_text_with_segment_context,
+    annotation_path,
+    filter_segments,
+    load_json_if_exists,
+    normalize_cutoff_payload,
+    parse_json_object,
+    save_error,
+    validate_player_id,
+)
 from gooseomni.benchmark.prompts import memory_state_prompt
-from gooseomni.benchmark.schema import MemoryState, VALID_PLAYERS
+from gooseomni.benchmark.schema import VALID_PLAYERS, MemoryState
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def parse_args() -> argparse.Namespace:
@@ -46,8 +42,16 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _stage(dataset_root: Path, output_root: Path | None, stage: str, segment: object, player_id: str | None = None) -> dict | None:
-    return load_json_if_exists(annotation_path(dataset_root, stage, segment, player_id, output_root))
+def _stage(
+    dataset_root: Path,
+    output_root: Path | None,
+    stage: str,
+    segment: object,
+    player_id: str | None = None,
+) -> dict | None:
+    return load_json_if_exists(
+        annotation_path(dataset_root, stage, segment, player_id, output_root)
+    )
 
 
 MEMORY_TYPE_ALIASES = {
@@ -79,7 +83,14 @@ DECAY_STATUS_ALIASES = {
     "old": "stale",
     "conflicted": "contradicted",
 }
-VALID_MEMORY_TYPES = {"direct_visual", "heard_claim", "public_result", "self_action", "inferred", "phase"}
+VALID_MEMORY_TYPES = {
+    "direct_visual",
+    "heard_claim",
+    "public_result",
+    "self_action",
+    "inferred",
+    "phase",
+}
 VALID_DECAY_STATUS = {"active", "stale", "contradicted"}
 VALID_VISIBILITY = {"private", "public"}
 
@@ -92,13 +103,19 @@ def _previous_memory_before(
     target: str,
 ) -> dict | None:
     current_index = next(
-        (index for index, segment in enumerate(all_segments) if segment.segment_id == current_segment.segment_id),
+        (
+            index
+            for index, segment in enumerate(all_segments)
+            if segment.segment_id == current_segment.segment_id
+        ),
         None,
     )
     if current_index is None:
         return None
     for previous_segment in reversed(all_segments[:current_index]):
-        payload = _stage(dataset_root, output_root, "memory_states", previous_segment, target)
+        payload = _stage(
+            dataset_root, output_root, "memory_states", previous_segment, target
+        )
         if payload is not None:
             return payload
     return None
@@ -113,7 +130,9 @@ def _normalize_memory_payload(payload: dict, segment: object, target: str) -> di
     for index, item in enumerate(items, start=1):
         if not isinstance(item, dict):
             continue
-        item.setdefault("memory_id", f"{segment.segment_id}_{target}_memory_{index:03d}")
+        item.setdefault(
+            "memory_id", f"{segment.segment_id}_{target}_memory_{index:03d}"
+        )
         memory_type = str(item.get("memory_type") or "inferred").strip().lower()
         item["memory_type"] = MEMORY_TYPE_ALIASES.get(memory_type, memory_type)
         if item["memory_type"] not in VALID_MEMORY_TYPES:
@@ -131,11 +150,15 @@ def _normalize_memory_payload(payload: dict, segment: object, target: str) -> di
         if not isinstance(item.get("source_claim_ids"), list):
             item["source_claim_ids"] = []
         try:
-            item["first_observed_abs_sec"] = float(item.get("first_observed_abs_sec", segment.aligned_start_sec))
+            item["first_observed_abs_sec"] = float(
+                item.get("first_observed_abs_sec", segment.aligned_start_sec)
+            )
         except (TypeError, ValueError):
             item["first_observed_abs_sec"] = segment.aligned_start_sec
         try:
-            item["last_referenced_abs_sec"] = float(item.get("last_referenced_abs_sec", segment.aligned_end_sec))
+            item["last_referenced_abs_sec"] = float(
+                item.get("last_referenced_abs_sec", segment.aligned_end_sec)
+            )
         except (TypeError, ValueError):
             item["last_referenced_abs_sec"] = segment.aligned_end_sec
     delta = normalized.get("memory_delta")
@@ -158,7 +181,13 @@ def _normalize_memory_payload(payload: dict, segment: object, target: str) -> di
                 values = [values]
             if isinstance(values, list):
                 for value in values[:12]:
-                    converted.append({"operation": operation, "memory_id": str(value), "reason": "normalized from model memory_delta"})
+                    converted.append(
+                        {
+                            "operation": operation,
+                            "memory_id": str(value),
+                            "reason": "normalized from model memory_delta",
+                        }
+                    )
         normalized["memory_delta"] = converted
     elif not isinstance(delta, list):
         normalized["memory_delta"] = []
@@ -169,38 +198,88 @@ def main() -> None:
     args = parse_args()
     if args.target_player:
         validate_player_id(args.target_player)
-    backend = create_backend(args.backend, model=args.model, api_key_env=args.api_key_env, base_url=args.base_url, server_url=args.server_url)
+    backend = create_backend(
+        args.backend,
+        model=args.model,
+        api_key_env=args.api_key_env,
+        base_url=args.base_url,
+        server_url=args.server_url,
+    )
     segments_path = args.segments_jsonl or args.dataset_root / "segments.jsonl"
     all_segments = load_segments_jsonl(segments_path)
-    segments = filter_segments(all_segments, game_id=args.game_id, segment_id=args.segment_id, limit=args.limit, skip=args.skip, stride=args.stride)
+    segments = filter_segments(
+        all_segments,
+        game_id=args.game_id,
+        segment_id=args.segment_id,
+        limit=args.limit,
+        skip=args.skip,
+        stride=args.stride,
+    )
     stats = {"ok": 0, "error": 0, "skipped": 0}
-    previous: dict[str, dict | None] = {player: None for player in VALID_PLAYERS}
+    previous: dict[str, dict | None] = dict.fromkeys(VALID_PLAYERS)
     for segment in segments:
         targets = [args.target_player] if args.target_player else list(VALID_PLAYERS)
-        phase = _stage(args.dataset_root, args.output_root, "phase_events", segment) or {}
+        phase = (
+            _stage(args.dataset_root, args.output_root, "phase_events", segment) or {}
+        )
         for target in targets:
-            output_path = annotation_path(args.dataset_root, "memory_states", segment, target, args.output_root)
+            output_path = annotation_path(
+                args.dataset_root, "memory_states", segment, target, args.output_root
+            )
             if output_path.exists() and args.resume and not args.overwrite:
                 previous[target] = load_json_if_exists(output_path)
                 stats["skipped"] += 1
                 continue
-            pov_ann = _stage(args.dataset_root, args.output_root, "pov_events", segment, target) or {}
-            utt_ann = _stage(args.dataset_root, args.output_root, "utterances", segment, target) or {}
-            previous_state = previous.get(target) or _previous_memory_before(args.dataset_root, args.output_root, all_segments, segment, target)
-            prompt = memory_state_prompt(segment, target, previous_state, pov_ann.get("events", []), utt_ann.get("utterances", []), phase.get("phase_events", []))
+            pov_ann = (
+                _stage(
+                    args.dataset_root, args.output_root, "pov_events", segment, target
+                )
+                or {}
+            )
+            utt_ann = (
+                _stage(
+                    args.dataset_root, args.output_root, "utterances", segment, target
+                )
+                or {}
+            )
+            previous_state = previous.get(target) or _previous_memory_before(
+                args.dataset_root, args.output_root, all_segments, segment, target
+            )
+            prompt = memory_state_prompt(
+                segment,
+                target,
+                previous_state,
+                pov_ann.get("events", []),
+                utt_ann.get("utterances", []),
+                phase.get("phase_events", []),
+            )
             raw_response = ""
             try:
-                raw_response = annotate_text_with_segment_context(backend, prompt, args.dataset_root, segment, target)
-                state = MemoryState.model_validate(_normalize_memory_payload(parse_json_object(raw_response), segment, target))
+                raw_response = annotate_text_with_segment_context(
+                    backend, prompt, args.dataset_root, segment, target
+                )
+                state = MemoryState.model_validate(
+                    _normalize_memory_payload(
+                        parse_json_object(raw_response), segment, target
+                    )
+                )
                 write_json(output_path, state)
                 previous[target] = state.model_dump()
                 stats["ok"] += 1
             except Exception as exc:  # noqa: BLE001
-                save_error(dataset_root=args.dataset_root, annotation_root=args.output_root, stage="memory_states", segment=segment, target_player=target, prompt=prompt, raw_response=raw_response, error=exc)
+                save_error(
+                    dataset_root=args.dataset_root,
+                    annotation_root=args.output_root,
+                    stage="memory_states",
+                    segment=segment,
+                    target_player=target,
+                    prompt=prompt,
+                    raw_response=raw_response,
+                    error=exc,
+                )
                 stats["error"] += 1
     print(stats)
 
 
 if __name__ == "__main__":
     main()
-

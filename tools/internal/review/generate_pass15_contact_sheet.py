@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import subprocess
-import argparse
 from pathlib import Path
 
-
-PASS = Path("runs/gooseomni_decrypto_diagnostic_pass14_codex_human_verified_cumulative_0001_0002")
+PASS = Path(
+    "runs/gooseomni_decrypto_diagnostic_pass14_codex_human_verified_cumulative_0001_0002"
+)
 RELEASE = Path("runs/gooseomni_gameplay_pass1/release_benchmark_v2/inputs/videos/g001")
 DEFAULT_OUT_NAME = "pass15_candidates_410_430_contact"
 DEFAULT_IDS = [
@@ -30,7 +31,11 @@ DEFAULT_IDS = [
 
 
 def read_jsonl(path: Path) -> list[dict]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def phase_start(phase_id: str) -> float:
@@ -40,7 +45,19 @@ def phase_start(phase_id: str) -> float:
 
 def snap(video: Path, sec: float, out: Path) -> bool:
     subprocess.run(
-        ["ffmpeg", "-y", "-ss", f"{max(sec, 0):.2f}", "-i", str(video), "-frames:v", "1", "-q:v", "2", str(out)],
+        [
+            "ffmpeg",
+            "-y",
+            "-ss",
+            f"{max(sec, 0):.2f}",
+            "-i",
+            str(video),
+            "-frames:v",
+            "1",
+            "-q:v",
+            "2",
+            str(out),
+        ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False,
@@ -62,11 +79,23 @@ def main() -> None:
     pass_root = Path(args.pass_root)
     ids = list(args.ids)
     if args.ids_file:
-        ids = [line.strip() for line in Path(args.ids_file).read_text(encoding="utf-8").splitlines() if line.strip()]
+        ids = [
+            line.strip()
+            for line in Path(args.ids_file).read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
     out = pass_root / "review/codex_human_review_assets" / args.out_name
     out.mkdir(parents=True, exist_ok=True)
-    groups = {row["probe_group_id"]: row for row in read_jsonl(pass_root / "annotations/diagnostics/probe_groups.jsonl")}
-    events = {row["world_event_id"]: row for row in read_jsonl(pass_root / "annotations/oracle_ledger/world_events.jsonl")}
+    groups = {
+        row["probe_group_id"]: row
+        for row in read_jsonl(pass_root / "annotations/diagnostics/probe_groups.jsonl")
+    }
+    events = {
+        row["world_event_id"]: row
+        for row in read_jsonl(
+            pass_root / "annotations/oracle_ledger/world_events.jsonl"
+        )
+    }
     manifest = []
     for idx, gid in enumerate(ids, 1):
         group = groups[gid]
@@ -81,7 +110,7 @@ def main() -> None:
         pair = out / f"{idx:03d}_{gid}_PAIR.jpg"
         ok1 = snap(RELEASE / phase / f"{source}.mp4", local_sec, src)
         ok2 = snap(RELEASE / phase / f"{target}.mp4", local_sec, tgt)
-        label = f"{idx} {gid} {event['world_event_id']} src:{source} tgt:{target} abs:{abs_sec:.1f} {event.get('event_type')} {event.get('location')}"
+        f"{idx} {gid} {event['world_event_id']} src:{source} tgt:{target} abs:{abs_sec:.1f} {event.get('event_type')} {event.get('location')}"
         if ok1 and ok2:
             subprocess.run(
                 [
@@ -133,15 +162,33 @@ def main() -> None:
             + f"xstack=inputs={len(ok_rows)}:layout={'|'.join(layout)}[out]"
         )
         subprocess.run(
-            ["ffmpeg", "-y", *inputs, "-filter_complex", filter_complex, "-map", "[out]", str(out / "contact_sheet.jpg")],
+            [
+                "ffmpeg",
+                "-y",
+                *inputs,
+                "-filter_complex",
+                filter_complex,
+                "-map",
+                "[out]",
+                str(out / "contact_sheet.jpg"),
+            ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             check=False,
         )
 
-    (out / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    (out / "manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(out)
-    print("pairs", sum(row["ok"] for row in manifest), "manifest", len(manifest), "contact", (out / "contact_sheet.jpg").exists())
+    print(
+        "pairs",
+        sum(row["ok"] for row in manifest),
+        "manifest",
+        len(manifest),
+        "contact",
+        (out / "contact_sheet.jpg").exists(),
+    )
     for row in manifest:
         print(json.dumps(row, ensure_ascii=False))
 

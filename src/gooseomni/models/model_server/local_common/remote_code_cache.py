@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import shutil
 import os
+import shutil
 from pathlib import Path
 
 
@@ -25,5 +25,8 @@ def sync_remote_code_cache(model_dir: str, package_name: str) -> None:
     for target_dir in target_dirs:
         for source_file in source_files:
             target_file = target_dir / source_file.name
-            if not target_file.exists() or target_file.stat().st_size != source_file.stat().st_size:
+            if (
+                not target_file.exists()
+                or target_file.stat().st_size != source_file.stat().st_size
+            ):
                 shutil.copy2(source_file, target_file)

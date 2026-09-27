@@ -10,12 +10,16 @@ from gooseomni.models.pipeline.experiment import level1_asr_tag
 
 
 def modality_metadata(level: int) -> dict[str, Any]:
-    raw = str(
-        os.getenv(f"GOOSEOMNI_LEVEL{level}_MODALITY")
-        or os.getenv("GOOSEOMNI_MODALITY")
-        or os.getenv("MODALITY")
-        or CONFIG.benchmark(f"level{level}.modality", "avt")
-    ).strip().lower()
+    raw = (
+        str(
+            os.getenv(f"GOOSEOMNI_LEVEL{level}_MODALITY")
+            or os.getenv("GOOSEOMNI_MODALITY")
+            or os.getenv("MODALITY")
+            or CONFIG.benchmark(f"level{level}.modality", "avt")
+        )
+        .strip()
+        .lower()
+    )
     if raw in {"vt", "v", "vision", "vision+text", "video+text"}:
         return {
             "modality": "video-only",
@@ -70,8 +74,12 @@ def add_row_modality(row: dict[str, Any], level: int) -> dict[str, Any]:
 
 
 def output_path_for(level: int, model_name: str) -> Path:
-    output_dir = os.getenv(f"GOOSEOMNI_LEVEL{level}_OUTPUT_DIR") or CONFIG.benchmark(f"level{level}.output_dir", "")
-    output_pattern = os.getenv(f"GOOSEOMNI_LEVEL{level}_OUTPUT_PATTERN") or CONFIG.benchmark(
+    output_dir = os.getenv(f"GOOSEOMNI_LEVEL{level}_OUTPUT_DIR") or CONFIG.benchmark(
+        f"level{level}.output_dir", ""
+    )
+    output_pattern = os.getenv(
+        f"GOOSEOMNI_LEVEL{level}_OUTPUT_PATTERN"
+    ) or CONFIG.benchmark(
         f"level{level}.output_pattern",
         f"results_{{model}}_level{level}_{{modality}}.json",
     )
@@ -90,4 +98,6 @@ def _experiment_note(meta: dict[str, Any]) -> str:
         return "Video-only evaluation: visual frames are passed to the model; audio is not passed."
     if meta["modality_code"] == "amv":
         return "Audio-only masked-video evaluation: black visual frames are passed with the original audio to keep video-token pressure comparable."
-    return "Audio-video evaluation: both visual frames and audio are passed to the model."
+    return (
+        "Audio-video evaluation: both visual frames and audio are passed to the model."
+    )

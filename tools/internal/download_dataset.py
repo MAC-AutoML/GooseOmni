@@ -1,31 +1,24 @@
-#!/usr/bin/env python3
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
-
 
 import argparse
-import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 from gooseomni.config.paths import PATHS
-from gooseomni.models.utils.dataset_downloader import DATASET_SPECS, ensure_default_dataset_available
+from gooseomni.models.utils.dataset_downloader import (
+    DATASET_SPECS,
+    ensure_default_dataset_available,
+)
+
+#!/usr/bin/env python3
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Download GooseOmni benchmark data into the local data/ directory.")
+    parser = argparse.ArgumentParser(
+        description="Download GooseOmni benchmark data into the local data/ directory."
+    )
     parser.add_argument(
         "--level",
         choices=["level1", "level2", "all"],

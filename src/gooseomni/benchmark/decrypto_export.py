@@ -1,14 +1,44 @@
-from .decrypto_probes import *  # noqa: F401,F403
+import collections
+import json
+from pathlib import Path
+from typing import Any
 
-def generate_probes_for_group(group: dict[str, Any], ledger: dict[str, list[dict[str, Any]]]) -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, Any]]:
+from gooseomni.benchmark.decrypto_canonical import read_jsonl, write_json, write_jsonl
+from gooseomni.benchmark.decrypto_probes import (
+    claim_by_id,
+    compact_context,
+    event_by_id,
+    expected_schema_for,
+    ledger_players,
+    load_ledger,
+    pick_other_player,
+    probe_prompt_header,
+    public_query_form,
+    select_probe_groups,
+    snapshot_for,
+    speaker_listener_public_model,
+)
+
+
+def generate_probes_for_group(
+    group: dict[str, Any], ledger: dict[str, list[dict[str, Any]]]
+) -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, Any]]:
     events = event_by_id(ledger["world_events"])
     claims = claim_by_id(ledger["claims"])
     snapshots = ledger["belief_memory_snapshots"]
     target = group["target_player"]
     cutoff = group["cutoff_abs_sec"]
     target_snapshot = snapshot_for(snapshots, target, cutoff)
-    anchor_events = [events[event_id] for event_id in group.get("anchor_event_ids", []) if event_id in events]
-    related_claims = [claims[claim_id] for claim_id in group.get("related_claim_ids", []) if claim_id in claims]
+    anchor_events = [
+        events[event_id]
+        for event_id in group.get("anchor_event_ids", [])
+        if event_id in events
+    ]
+    related_claims = [
+        claims[claim_id]
+        for claim_id in group.get("related_claim_ids", [])
+        if claim_id in claims
+    ]
     players = ledger_players(ledger)
     other_player = (
         pick_other_player(anchor_events[0], target, players)
@@ -29,7 +59,11 @@ def generate_probes_for_group(group: dict[str, Any], ledger: dict[str, list[dict
         target in event.get("source_povs", []) for event in anchor_events
     )
     target_knows_truth_at_cutoff = target_has_anchor_evidence and not forbidden
-    target_belief_label = "knows_truth" if target_knows_truth_at_cutoff else ("does_not_know" if forbidden else "uncertain")
+    target_belief_label = (
+        "knows_truth"
+        if target_knows_truth_at_cutoff
+        else ("does_not_know" if forbidden else "uncertain")
+    )
 
     probes = [
         {
@@ -39,7 +73,8 @@ def generate_probes_for_group(group: dict[str, Any], ledger: dict[str, list[dict
             "input_condition": "target_available_events",
             "target_player": target,
             "cutoff_abs_sec": cutoff,
-            "prompt": header + f"\nOnly use the target player's available information before cutoff. Do not use hidden oracle events.\nQUERY_VARIABLE_PUBLIC_FORM_JSON:\n{query_form}\nTARGET_AVAILABLE_CONTEXT_JSON:\n{target_context}\nQUESTION: From {target}'s perspective at cutoff, can {target} verify, doubt, believe, or remain uncertain about the public-form query using only target-available evidence?\nReturn strict JSON matching the schema.",
+            "prompt": header
+            + f"\nOnly use the target player's available information before cutoff. Do not use hidden oracle events.\nQUERY_VARIABLE_PUBLIC_FORM_JSON:\n{query_form}\nTARGET_AVAILABLE_CONTEXT_JSON:\n{target_context}\nQUESTION: From {target}'s perspective at cutoff, can {target} verify, doubt, believe, or remain uncertain about the public-form query using only target-available evidence?\nReturn strict JSON matching the schema.",
             "expected_output_schema": expected_schema_for("A_pre_reveal_belief"),
             "forbidden_event_ids": forbidden,
             "acceptable_evidence_ids": acceptable,
@@ -52,8 +87,11 @@ def generate_probes_for_group(group: dict[str, Any], ledger: dict[str, list[dict
             "input_condition": "oracle_truth_revealed",
             "target_player": target,
             "cutoff_abs_sec": cutoff,
-            "prompt": header + f"\nORACLE_TRUTH_JSON:\n{oracle_truth}\nTARGET_AVAILABLE_CONTEXT_BEFORE_REVEAL_JSON:\n{target_context}\nQUESTION: Now that oracle truth is revealed, reconstruct {target}'s belief at the earlier cutoff. Do not treat revealed truth as evidence {target} had at cutoff. Do not rely on prior probe responses.\nReturn strict JSON matching the schema.",
-            "expected_output_schema": expected_schema_for("B_post_reveal_reconstruct_previous_belief"),
+            "prompt": header
+            + f"\nORACLE_TRUTH_JSON:\n{oracle_truth}\nTARGET_AVAILABLE_CONTEXT_BEFORE_REVEAL_JSON:\n{target_context}\nQUESTION: Now that oracle truth is revealed, reconstruct {target}'s belief at the earlier cutoff. Do not treat revealed truth as evidence {target} had at cutoff. Do not rely on prior probe responses.\nReturn strict JSON matching the schema.",
+            "expected_output_schema": expected_schema_for(
+                "B_post_reveal_reconstruct_previous_belief"
+            ),
             "forbidden_event_ids": forbidden,
             "acceptable_evidence_ids": acceptable,
             "gold_source": "qwen_weak",
@@ -65,7 +103,8 @@ def generate_probes_for_group(group: dict[str, Any], ledger: dict[str, list[dict
             "input_condition": "global_to_perspective",
             "target_player": target,
             "cutoff_abs_sec": cutoff,
-            "prompt": header + f"\nORACLE_TRUTH_JSON:\n{oracle_truth}\nOTHER_PLAYER: {other_player}\nOTHER_PLAYER_AVAILABLE_CONTEXT_BEFORE_REVEAL_JSON:\n{other_context}\nQUESTION: From {other_player}'s perspective at cutoff, did {other_player} know the oracle truth? What would {other_player} likely believe before reveal?\nReturn strict JSON matching the schema.",
+            "prompt": header
+            + f"\nORACLE_TRUTH_JSON:\n{oracle_truth}\nOTHER_PLAYER: {other_player}\nOTHER_PLAYER_AVAILABLE_CONTEXT_BEFORE_REVEAL_JSON:\n{other_context}\nQUESTION: From {other_player}'s perspective at cutoff, did {other_player} know the oracle truth? What would {other_player} likely believe before reveal?\nReturn strict JSON matching the schema.",
             "expected_output_schema": expected_schema_for("C_other_agent_false_belief"),
             "forbidden_event_ids": [],
             "acceptable_evidence_ids": other_snapshot.get("available_evidence_ids", []),
@@ -75,7 +114,16 @@ def generate_probes_for_group(group: dict[str, Any], ledger: dict[str, list[dict
 
     if related_claims:
         speaker = related_claims[0].get("speaker", "unknown")
-        speaker_snapshot = snapshot_for(snapshots, speaker, cutoff) if speaker in players else {"available_evidence_ids": [], "public_history": [], "private_observations": [], "heard_claims": []}
+        speaker_snapshot = (
+            snapshot_for(snapshots, speaker, cutoff)
+            if speaker in players
+            else {
+                "available_evidence_ids": [],
+                "public_history": [],
+                "private_observations": [],
+                "heard_claims": [],
+            }
+        )
         speaker_context = compact_context(speaker_snapshot)
         listener_public_model = speaker_listener_public_model(target_snapshot, target)
         probes.append(
@@ -86,8 +134,11 @@ def generate_probes_for_group(group: dict[str, Any], ledger: dict[str, list[dict
                 "input_condition": "speaker_perspective",
                 "target_player": target,
                 "cutoff_abs_sec": cutoff,
-                "prompt": header + f"\nRELATED_CLAIMS_JSON:\n{related_claim_text}\nSPEAKER_AVAILABLE_CONTEXT_JSON:\n{speaker_context}\nSPEAKER_MODEL_OF_LISTENER_PUBLIC_HISTORY_JSON:\n{listener_public_model}\nQUESTION: From speaker {speaker}'s perspective after making the strategic claim, predict how listener {target} would interpret the claim and how their trust/action may change. Use only what the speaker could know or reasonably model from public listener history.\nReturn strict JSON matching the schema.",
-                "expected_output_schema": expected_schema_for("D_perspective_taking_prediction"),
+                "prompt": header
+                + f"\nRELATED_CLAIMS_JSON:\n{related_claim_text}\nSPEAKER_AVAILABLE_CONTEXT_JSON:\n{speaker_context}\nSPEAKER_MODEL_OF_LISTENER_PUBLIC_HISTORY_JSON:\n{listener_public_model}\nQUESTION: From speaker {speaker}'s perspective after making the strategic claim, predict how listener {target} would interpret the claim and how their trust/action may change. Use only what the speaker could know or reasonably model from public listener history.\nReturn strict JSON matching the schema.",
+                "expected_output_schema": expected_schema_for(
+                    "D_perspective_taking_prediction"
+                ),
                 "forbidden_event_ids": forbidden,
                 "acceptable_evidence_ids": acceptable,
                 "gold_source": "qwen_weak",
@@ -96,15 +147,31 @@ def generate_probes_for_group(group: dict[str, Any], ledger: dict[str, list[dict
 
     hidden_gold = {
         "probe_group_id": group["probe_group_id"],
-        "A_expected_weak": {"knows_truth": target_knows_truth_at_cutoff, "must_not_use_event_ids": forbidden},
+        "A_expected_weak": {
+            "knows_truth": target_knows_truth_at_cutoff,
+            "must_not_use_event_ids": forbidden,
+        },
         "B_RC_weak": {
             "must_not_answer_as_if_target_saw_hidden_events": bool(forbidden),
             "target_had_anchor_evidence_at_cutoff": target_has_anchor_evidence,
         },
-        "B_RC_strong_reference": {"belief_label": target_belief_label, "key_evidence_class": "available_claim_or_partial_observation"},
-        "C_FB_weak": {"other_player": other_player, "other_player_knows_truth": other_player in (anchor_events[0].get("source_povs", []) if anchor_events else [])},
-        "C_FB_strong_reference": {"other_player": other_player, "key_evidence_class": "other_player_available_context"},
-        "D_PT_reference": {"listener": target, "requires_information_state_difference": bool(related_claims)},
+        "B_RC_strong_reference": {
+            "belief_label": target_belief_label,
+            "key_evidence_class": "available_claim_or_partial_observation",
+        },
+        "C_FB_weak": {
+            "other_player": other_player,
+            "other_player_knows_truth": other_player
+            in (anchor_events[0].get("source_povs", []) if anchor_events else []),
+        },
+        "C_FB_strong_reference": {
+            "other_player": other_player,
+            "key_evidence_class": "other_player_available_context",
+        },
+        "D_PT_reference": {
+            "listener": target,
+            "requires_information_state_difference": bool(related_claims),
+        },
         "forbidden_event_ids_for_target": forbidden,
         "acceptable_evidence_ids_for_target": acceptable,
         "claim_truth_global": "unverified",
@@ -115,16 +182,25 @@ def generate_probes_for_group(group: dict[str, Any], ledger: dict[str, list[dict
     }
     quality = {
         "probe_group_id": group["probe_group_id"],
-        "keep": len(probes) >= 3 and bool(group.get("hidden_event_ids_for_target") or group.get("available_evidence_ids_for_target")),
+        "keep": len(probes) >= 3
+        and bool(
+            group.get("hidden_event_ids_for_target")
+            or group.get("available_evidence_ids_for_target")
+        ),
         "diagnostic_score": 0.8 if len(probes) >= 4 else 0.7,
         "failure_reasons": [],
-        "needs_human_review": bool(group.get("needs_human_review", False) or group.get("quality", {}).get("needs_human_review", False)),
+        "needs_human_review": bool(
+            group.get("needs_human_review", False)
+            or group.get("quality", {}).get("needs_human_review", False)
+        ),
         "recommended_gold_source": "qwen_weak",
     }
     return probes, hidden_gold, quality
 
 
-def build_decrypto_diagnostics(ledger_root: Path, output_root: Path, limit: int = 240) -> dict[str, int]:
+def build_decrypto_diagnostics(
+    ledger_root: Path, output_root: Path, limit: int = 240
+) -> dict[str, int]:
     ledger = load_ledger(ledger_root)
     groups = select_probe_groups(ledger, limit=limit)
     all_probes: list[dict[str, Any]] = []
@@ -152,9 +228,17 @@ def build_decrypto_diagnostics(ledger_root: Path, output_root: Path, limit: int 
     diag = output_root / "diagnostics"
     write_jsonl(diag / "probe_groups.jsonl", groups)
     write_jsonl(diag / "probes_A_pre_reveal.jsonl", by_type["A_pre_reveal_belief"])
-    write_jsonl(diag / "probes_B_reconstruct.jsonl", by_type["B_post_reveal_reconstruct_previous_belief"])
-    write_jsonl(diag / "probes_C_false_belief.jsonl", by_type["C_other_agent_false_belief"])
-    write_jsonl(diag / "probes_D_perspective_taking.jsonl", by_type["D_perspective_taking_prediction"])
+    write_jsonl(
+        diag / "probes_B_reconstruct.jsonl",
+        by_type["B_post_reveal_reconstruct_previous_belief"],
+    )
+    write_jsonl(
+        diag / "probes_C_false_belief.jsonl", by_type["C_other_agent_false_belief"]
+    )
+    write_jsonl(
+        diag / "probes_D_perspective_taking.jsonl",
+        by_type["D_perspective_taking_prediction"],
+    )
     write_jsonl(diag / "hidden_gold.jsonl", hidden_gold)
     write_jsonl(diag / "diagnostic_quality.jsonl", quality_rows)
     return {
@@ -168,7 +252,9 @@ def build_decrypto_diagnostics(ledger_root: Path, output_root: Path, limit: int 
     }
 
 
-def export_gooseomni_benchmark(annotation_root: Path, benchmark_root: Path) -> dict[str, int]:
+def export_gooseomni_benchmark(
+    annotation_root: Path, benchmark_root: Path
+) -> dict[str, int]:
     diag = annotation_root / "diagnostics"
     groups = read_jsonl(diag / "probe_groups.jsonl")
     probes = (
@@ -280,24 +366,35 @@ def export_gooseomni_benchmark(annotation_root: Path, benchmark_root: Path) -> d
         "structured_perspective": [
             trial
             for trial in trials
-            if trial["input_condition"] in {"target_available_events", "public_history_only", "speaker_perspective"}
+            if trial["input_condition"]
+            in {"target_available_events", "public_history_only", "speaker_perspective"}
         ],
         "global_to_perspective": [
             trial
             for trial in trials
-            if trial["input_condition"] in {"oracle_truth_revealed", "global_to_perspective"}
+            if trial["input_condition"]
+            in {"oracle_truth_revealed", "global_to_perspective"}
         ],
         "specialist_agent": [
             {
                 **trial,
-                "allowed_resources": ["oracle_ledger", "visibility_edges", "belief_memory_snapshots", "claim_truth_links"],
+                "allowed_resources": [
+                    "oracle_ledger",
+                    "visibility_edges",
+                    "belief_memory_snapshots",
+                    "claim_truth_links",
+                ],
             }
             for trial in trials
         ],
     }
     for track_name, rows in track_rows.items():
         write_jsonl(static / "input_conditions" / f"{track_name}.jsonl", rows)
-    review_queue = [q for q in quality if q.get("needs_human_review") or q.get("diagnostic_score", 1.0) < 0.65]
+    review_queue = [
+        q
+        for q in quality
+        if q.get("needs_human_review") or q.get("diagnostic_score", 1.0) < 0.65
+    ]
     write_jsonl(benchmark_root / "human_review_queue.jsonl", review_queue)
     (reports / "diagnostic_quality.md").parent.mkdir(parents=True, exist_ok=True)
     (reports / "benchmark_card.md").write_text(
@@ -338,4 +435,9 @@ def export_gooseomni_benchmark(annotation_root: Path, benchmark_root: Path) -> d
         "# Annotation Quality\n\nAll labels are weak automatic labels unless promoted to qwen_checked or human_verified.\n",
         encoding="utf-8",
     )
-    return {"probe_groups": len(groups), "prompts": len(probes), "static_trials": len(trials), "review_queue": len(review_queue)}
+    return {
+        "probe_groups": len(groups),
+        "prompts": len(probes),
+        "static_trials": len(trials),
+        "review_queue": len(review_queue),
+    }

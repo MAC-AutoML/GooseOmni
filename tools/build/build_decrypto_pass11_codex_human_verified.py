@@ -1,27 +1,13 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import collections
 import json
 import shutil
-import sys
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 from gooseomni.benchmark.decrypto_diagnostics import write_json, write_jsonl
-
 
 PROBE_FILES = [
     "probes_A_pre_reveal.jsonl",
@@ -32,7 +18,9 @@ PROBE_FILES = [
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Promote Codex-reviewed GooseOmni probe groups to human_verified.")
+    parser = argparse.ArgumentParser(
+        description="Promote Codex-reviewed GooseOmni probe groups to human_verified."
+    )
     parser.add_argument("--input-pass-root", type=Path, required=True)
     parser.add_argument("--review-records", type=Path, required=True)
     parser.add_argument("--output-pass-root", type=Path, required=True)
@@ -41,7 +29,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def copy_input_pass(src: Path, dst: Path, overwrite: bool) -> None:
@@ -52,7 +44,9 @@ def copy_input_pass(src: Path, dst: Path, overwrite: bool) -> None:
     shutil.copytree(src, dst)
 
 
-def accepted_review_records(records: list[dict[str, Any]]) -> tuple[set[str], list[dict[str, Any]]]:
+def accepted_review_records(
+    records: list[dict[str, Any]],
+) -> tuple[set[str], list[dict[str, Any]]]:
     accepted: set[str] = set()
     gate_rows: list[dict[str, Any]] = []
     for record in records:
@@ -89,7 +83,9 @@ def accepted_review_records(records: list[dict[str, Any]]) -> tuple[set[str], li
     return accepted, gate_rows
 
 
-def promote_rows(path: Path, accepted: set[str], review_by_group: dict[str, dict[str, Any]]) -> None:
+def promote_rows(
+    path: Path, accepted: set[str], review_by_group: dict[str, dict[str, Any]]
+) -> None:
     rows = []
     for row in read_jsonl(path):
         group_id = row.get("probe_group_id")
@@ -100,7 +96,9 @@ def promote_rows(path: Path, accepted: set[str], review_by_group: dict[str, dict
             if "recommended_gold_source" in promoted:
                 promoted["recommended_gold_source"] = "human_verified"
             promoted["review_status"] = "pass11_codex_human_verified"
-            promoted["human_review_record_id"] = review_by_group[group_id].get("review_record_id")
+            promoted["human_review_record_id"] = review_by_group[group_id].get(
+                "review_record_id"
+            )
             promoted["human_reviewer"] = "codex_human_reviewer"
             promoted["needs_human_review"] = False
             rows.append(promoted)
@@ -115,9 +113,18 @@ def main() -> None:
 
     records = read_jsonl(args.review_records)
     accepted, gate_rows = accepted_review_records(records)
-    review_by_group = {row["probe_group_id"]: row for row in records if row.get("probe_group_id") in accepted}
+    review_by_group = {
+        row["probe_group_id"]: row
+        for row in records
+        if row.get("probe_group_id") in accepted
+    }
 
-    known_groups = {row["probe_group_id"] for row in read_jsonl(args.output_pass_root / "annotations/diagnostics/probe_groups.jsonl")}
+    known_groups = {
+        row["probe_group_id"]
+        for row in read_jsonl(
+            args.output_pass_root / "annotations/diagnostics/probe_groups.jsonl"
+        )
+    }
     unknown = sorted(accepted - known_groups)
     if unknown:
         raise SystemExit(f"review records reference unknown groups: {unknown}")
@@ -141,7 +148,11 @@ def main() -> None:
         "accepted_groups": len(accepted),
         "rejected_groups": len(records) - len(accepted),
         "accepted_probe_group_ids": sorted(accepted),
-        "reject_reason_counts": dict(collections.Counter(reason for row in gate_rows for reason in row["gate_reasons"])),
+        "reject_reason_counts": dict(
+            collections.Counter(
+                reason for row in gate_rows for reason in row["gate_reasons"]
+            )
+        ),
         "status": "pass11_codex_human_verified_gate_complete",
     }
     write_json(review_dir / "pass11_codex_human_review_summary.json", summary)

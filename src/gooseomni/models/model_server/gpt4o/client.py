@@ -32,4 +32,6 @@ class GPT4oClient:
             include_images=use_video,
             include_audio=False,
         )
-        return InferenceResult(text=raw_answer or "", parsed_answer=raw_answer or "", model=self.model_name)
+        return InferenceResult(
+            text=raw_answer or "", parsed_answer=raw_answer or "", model=self.model_name
+        )

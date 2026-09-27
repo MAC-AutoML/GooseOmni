@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Iterable
+from collections.abc import Iterable
 
 from .types import InferenceRequest, InferenceResult
 
@@ -18,6 +18,8 @@ class BasePipeline(ABC):
     def predict(self, request: InferenceRequest) -> InferenceResult:
         """Run inference for a single sample."""
 
-    def batch_predict(self, requests: Iterable[InferenceRequest]) -> list[InferenceResult]:
+    def batch_predict(
+        self, requests: Iterable[InferenceRequest]
+    ) -> list[InferenceResult]:
         """Default batch inference (can be overridden by subclasses)."""
         return [self.predict(req) for req in requests]

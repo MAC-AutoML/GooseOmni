@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 CANONICAL_PLAYERS = {"Gemini", "baile", "beigang", "mojiang", "saoyi", "xiaolu"}
 ACCEPTABLE_DECISIONS = {
     "confirm_candidate",
@@ -14,7 +13,11 @@ ACCEPTABLE_DECISIONS = {
     "reject",
     "uncertain",
 }
-PROMOTABLE_DECISIONS = {"confirm_candidate", "correct_transcript", "correct_speaker_or_alias"}
+PROMOTABLE_DECISIONS = {
+    "confirm_candidate",
+    "correct_transcript",
+    "correct_speaker_or_alias",
+}
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -23,12 +26,17 @@ def read_json(path: Path) -> dict[str, Any]:
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
 
 
 def audit_result(path: Path) -> tuple[dict[str, Any], dict[str, Any] | None]:
@@ -42,18 +50,28 @@ def audit_result(path: Path) -> tuple[dict[str, Any], dict[str, Any] | None]:
     if decision not in ACCEPTABLE_DECISIONS:
         issues.append("invalid_audio_confirmation_decision")
 
-    gold_policy = parsed.get("gold_policy") if isinstance(parsed.get("gold_policy"), dict) else {}
+    gold_policy = (
+        parsed.get("gold_policy") if isinstance(parsed.get("gold_policy"), dict) else {}
+    )
     if gold_policy.get("eligible_for_human_gold_merge") is True:
         issues.append("qwen_claims_direct_human_gold_eligibility")
     if gold_policy.get("needs_human_review") is not True:
         issues.append("needs_human_review_not_true")
 
-    speaker = parsed.get("confirmed_speaker") if isinstance(parsed.get("confirmed_speaker"), dict) else {}
+    speaker = (
+        parsed.get("confirmed_speaker")
+        if isinstance(parsed.get("confirmed_speaker"), dict)
+        else {}
+    )
     canonical_speaker = speaker.get("canonical_speaker")
     if canonical_speaker not in CANONICAL_PLAYERS and canonical_speaker != "unknown":
         issues.append("invalid_canonical_speaker")
 
-    claim = parsed.get("claim_grounding") if isinstance(parsed.get("claim_grounding"), dict) else {}
+    claim = (
+        parsed.get("claim_grounding")
+        if isinstance(parsed.get("claim_grounding"), dict)
+        else {}
+    )
     invalid_targets = [
         target
         for target in (claim.get("claim_target_players") or [])
@@ -62,7 +80,9 @@ def audit_result(path: Path) -> tuple[dict[str, Any], dict[str, Any] | None]:
     if invalid_targets:
         issues.append("invalid_claim_target_players")
 
-    transcript = parsed.get("transcript") if isinstance(parsed.get("transcript"), dict) else {}
+    transcript = (
+        parsed.get("transcript") if isinstance(parsed.get("transcript"), dict) else {}
+    )
     evidence_quality = parsed.get("evidence_quality")
     transcript_match = transcript.get("transcript_match")
     can_enter_merge_gate = (
@@ -77,7 +97,9 @@ def audit_result(path: Path) -> tuple[dict[str, Any], dict[str, Any] | None]:
     row = {
         "review_task_id": result.get("review_task_id"),
         "result_file": path.as_posix(),
-        "source_review_item_id": (result.get("source_task") or {}).get("source_review_item_id"),
+        "source_review_item_id": (result.get("source_task") or {}).get(
+            "source_review_item_id"
+        ),
         "parse_ok": bool(result.get("parse_ok")),
         "audio_confirmation_decision": decision,
         "evidence_quality": evidence_quality,
@@ -111,7 +133,9 @@ def audit_result(path: Path) -> tuple[dict[str, Any], dict[str, Any] | None]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Audit Qwen audio-confirmation outputs for meeting claims.")
+    parser = argparse.ArgumentParser(
+        description="Audit Qwen audio-confirmation outputs for meeting claims."
+    )
     parser.add_argument("--results-root", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     args = parser.parse_args()
@@ -152,7 +176,9 @@ def main() -> None:
         "promotion_to_human_verified_gold": False,
     }
     write_jsonl(args.output_root / "audio_confirmation_audit_rows.jsonl", rows)
-    write_jsonl(args.output_root / "codex_human_gold_merge_candidates.jsonl", merge_candidates)
+    write_jsonl(
+        args.output_root / "codex_human_gold_merge_candidates.jsonl", merge_candidates
+    )
     write_json(args.output_root / "audio_confirmation_audit_summary.json", summary)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 

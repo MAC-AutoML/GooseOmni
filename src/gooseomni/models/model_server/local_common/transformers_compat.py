@@ -21,7 +21,9 @@ def ensure_transformers_no_init_weights() -> None:
     except Exception:
         return
 
-    if hasattr(modeling_utils, "no_init_weights") and hasattr(modeling_utils, "ContextManagers"):
+    if hasattr(modeling_utils, "no_init_weights") and hasattr(
+        modeling_utils, "ContextManagers"
+    ):
         return
 
     try:
@@ -48,6 +50,7 @@ def ensure_transformers_no_init_weights() -> None:
             modeling_utils.no_init_weights = no_init_weights  # type: ignore[attr-defined]
 
         if not hasattr(modeling_utils, "ContextManagers"):
+
             class ContextManagers:  # type: ignore[no-redef]
                 """
                 Wrapper for `contextlib.ExitStack` which enters a collection of context managers.

@@ -1,29 +1,16 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import json
-import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 from gooseomni.annotation.eval_export import cut_video
 from gooseomni.annotation.json_utils import write_json
 from gooseomni.annotation.splitting import load_sync_offsets
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 DEFAULT_SYNC_CORRECTIONS: dict[str, float] = {
@@ -132,7 +119,7 @@ def export_gooseomni_aligned_videos(
 
     for segment in segments:
         segment_record = segment_metadata(segment)
-        segment_dir = output_video_root / segment["game_id"] / segment["segment_id"]
+        output_video_root / segment["game_id"] / segment["segment_id"]
         for clip in segment["clips"]:
             base_offset = base_offsets.get((clip["game_id"], clip["player_id"]))
             if base_offset is None:
@@ -142,15 +129,23 @@ def export_gooseomni_aligned_videos(
             raw_start = base_offset + correction + clip["start_sec"]
             raw_end = base_offset + correction + clip["end_sec"]
             if raw_start < 0:
-                skipped.append(skip_record(clip, "negative_raw_start", raw_start_sec=raw_start))
+                skipped.append(
+                    skip_record(clip, "negative_raw_start", raw_start_sec=raw_start)
+                )
                 continue
             if raw_end <= raw_start:
-                skipped.append(skip_record(clip, "non_positive_duration", raw_start_sec=raw_start))
+                skipped.append(
+                    skip_record(clip, "non_positive_duration", raw_start_sec=raw_start)
+                )
                 continue
 
             source_video = raw_dir / clip["game_id"] / f"{clip['player_id']}.mp4"
             if not source_video.exists():
-                skipped.append(skip_record(clip, "missing_raw_video", source_video=str(source_video)))
+                skipped.append(
+                    skip_record(
+                        clip, "missing_raw_video", source_video=str(source_video)
+                    )
+                )
                 continue
 
             rel_video = (
@@ -276,7 +271,9 @@ def build_segments(clips: list[dict[str, Any]]) -> list[dict[str, Any]]:
         grouped[(clip["game_id"], clip["start_sec"], clip["end_sec"])].append(clip)
 
     segments: list[dict[str, Any]] = []
-    for index, ((game_id, start, end), group) in enumerate(sorted(grouped.items()), start=1):
+    for index, ((game_id, start, end), group) in enumerate(
+        sorted(grouped.items()), start=1
+    ):
         segments.append(
             {
                 "segment_id": (
@@ -304,7 +301,9 @@ def segment_metadata(segment: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def load_round_candidates(round_boundaries_dir: Path, clip_id: str) -> list[dict[str, Any]]:
+def load_round_candidates(
+    round_boundaries_dir: Path, clip_id: str
+) -> list[dict[str, Any]]:
     path = round_boundaries_dir / f"{clip_id}.json"
     if not path.exists():
         return []
@@ -331,7 +330,9 @@ def skip_record(clip: dict[str, Any], reason: str, **extra: Any) -> dict[str, An
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     with path.open("w", encoding="utf-8") as handle:
         for row in rows:
-            handle.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
+            handle.write(
+                json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n"
+            )
 
 
 if __name__ == "__main__":

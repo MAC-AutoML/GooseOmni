@@ -10,10 +10,16 @@ from typing import Any
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
-def group_semantic_key(row: dict[str, Any], include_template: bool = True) -> tuple[Any, ...]:
+def group_semantic_key(
+    row: dict[str, Any], include_template: bool = True
+) -> tuple[Any, ...]:
     query_variable = row.get("query_variable") or {}
     parts: list[Any] = [
         row.get("target_player"),
@@ -54,17 +60,25 @@ def load_groups_from_runs(runs_root: Path) -> dict[str, list[dict[str, Any]]]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Audit accepted Codex-human review records against the current combined pass.")
+    parser = argparse.ArgumentParser(
+        description="Audit accepted Codex-human review records against the current combined pass."
+    )
     parser.add_argument("--main-pass-root", type=Path, required=True)
     parser.add_argument("--work-root", type=Path, default=Path("work"))
     parser.add_argument("--runs-root", type=Path, default=Path("runs"))
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
-    main_groups = read_jsonl(args.main_pass_root / "annotations/diagnostics/probe_groups.jsonl")
+    main_groups = read_jsonl(
+        args.main_pass_root / "annotations/diagnostics/probe_groups.jsonl"
+    )
     main_ids = {str(row.get("probe_group_id")) for row in main_groups}
-    main_exact_sem = {group_semantic_key(row, include_template=True) for row in main_groups}
-    main_loose_sem = {group_semantic_key(row, include_template=False) for row in main_groups}
+    main_exact_sem = {
+        group_semantic_key(row, include_template=True) for row in main_groups
+    }
+    main_loose_sem = {
+        group_semantic_key(row, include_template=False) for row in main_groups
+    }
     accepted = load_accept_records(args.work_root)
     groups_by_id = load_groups_from_runs(args.runs_root)
 
@@ -116,12 +130,29 @@ def main() -> None:
         "accepted_review_records_unique": len(accepted),
         "status_counts": dict(Counter(row["status"] for row in rows)),
         "not_in_main": [row for row in rows if row["status"] == "not_in_main"],
-        "semantic_loose_in_main": [row for row in rows if row["status"] == "semantic_loose_in_main"],
+        "semantic_loose_in_main": [
+            row for row in rows if row["status"] == "semantic_loose_in_main"
+        ],
         "records": rows,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({k: summary[k] for k in ["main_pass_root", "accepted_review_records_unique", "status_counts"]}, ensure_ascii=False, indent=2))
+    args.output.write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    print(
+        json.dumps(
+            {
+                k: summary[k]
+                for k in [
+                    "main_pass_root",
+                    "accepted_review_records_unique",
+                    "status_counts",
+                ]
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

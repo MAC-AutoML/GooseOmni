@@ -1,26 +1,15 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import json
 import shutil
-import sys
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from gooseomni.benchmark.decrypto_diagnostics import write_json, write_jsonl  # noqa: E402
-
+from gooseomni.benchmark.decrypto_diagnostics import (  # noqa: E402
+    write_json,
+    write_jsonl,
+)
 
 PROBE_FILES = [
     "probes_A_pre_reveal.jsonl",
@@ -31,8 +20,15 @@ PROBE_FILES = [
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Merge human_verified Decrypto probe groups from multiple passes.")
-    parser.add_argument("--base-pass-root", type=Path, required=True, help="Pass whose oracle_ledger will be copied.")
+    parser = argparse.ArgumentParser(
+        description="Merge human_verified Decrypto probe groups from multiple passes."
+    )
+    parser.add_argument(
+        "--base-pass-root",
+        type=Path,
+        required=True,
+        help="Pass whose oracle_ledger will be copied.",
+    )
     parser.add_argument("--input-pass-root", type=Path, action="append", required=True)
     parser.add_argument("--output-pass-root", type=Path, required=True)
     parser.add_argument("--overwrite", action="store_true")
@@ -42,11 +38,18 @@ def parse_args() -> argparse.Namespace:
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def is_human_verified(row: dict[str, Any]) -> bool:
-    return row.get("gold_source") == "human_verified" or row.get("recommended_gold_source") == "human_verified"
+    return (
+        row.get("gold_source") == "human_verified"
+        or row.get("recommended_gold_source") == "human_verified"
+    )
 
 
 def dedupe(rows: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
@@ -61,7 +64,9 @@ def dedupe(rows: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
     return out
 
 
-def semantic_key(row: dict[str, Any]) -> tuple[str, tuple[str, ...], str, str, tuple[str, ...]]:
+def semantic_key(
+    row: dict[str, Any],
+) -> tuple[str, tuple[str, ...], str, str, tuple[str, ...]]:
     query_variable = row.get("query_variable") or {}
     return (
         str(row.get("target_player")),
@@ -76,12 +81,18 @@ def safe_id_part(value: str) -> str:
     return "".join(ch if ch.isalnum() else "_" for ch in value).strip("_") or "x"
 
 
-def collision_safe_group_id(original_id: str, row: dict[str, Any], used_ids: set[str]) -> str:
+def collision_safe_group_id(
+    original_id: str, row: dict[str, Any], used_ids: set[str]
+) -> str:
     if original_id not in used_ids:
         return original_id
-    anchors = "_".join(str(item) for item in row.get("anchor_event_ids", [])) or "no_anchor"
+    anchors = (
+        "_".join(str(item) for item in row.get("anchor_event_ids", [])) or "no_anchor"
+    )
     template = safe_id_part(str(row.get("template", "template")))
-    query_type = safe_id_part(str((row.get("query_variable") or {}).get("type", "query")))
+    query_type = safe_id_part(
+        str((row.get("query_variable") or {}).get("type", "query"))
+    )
     candidate_base = f"{original_id}__{template}_{query_type}_{safe_id_part(anchors)}"
     candidate = candidate_base
     index = 2
@@ -97,12 +108,14 @@ def rewrite_probe_id(row: dict[str, Any], old_group_id: str, new_group_id: str) 
         return
     probe_id_text = str(probe_id)
     if probe_id_text.startswith(old_group_id):
-        row["probe_id"] = f"{new_group_id}{probe_id_text[len(old_group_id):]}"
+        row["probe_id"] = f"{new_group_id}{probe_id_text[len(old_group_id) :]}"
     else:
         row["probe_id"] = f"{new_group_id}_{safe_id_part(probe_id_text)}"
 
 
-def remap_group_rows(rows: list[dict[str, Any]], group_id_map: dict[str, str | None]) -> list[dict[str, Any]]:
+def remap_group_rows(
+    rows: list[dict[str, Any]], group_id_map: dict[str, str | None]
+) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for row in rows:
         old_group_id = str(row.get("probe_group_id"))
@@ -116,7 +129,12 @@ def remap_group_rows(rows: list[dict[str, Any]], group_id_map: dict[str, str | N
     return out
 
 
-def merge_human_verified_passes(base_pass_root: Path, input_pass_roots: list[Path], output_pass_root: Path, overwrite: bool = False) -> dict[str, Any]:
+def merge_human_verified_passes(
+    base_pass_root: Path,
+    input_pass_roots: list[Path],
+    output_pass_root: Path,
+    overwrite: bool = False,
+) -> dict[str, Any]:
     if output_pass_root.exists():
         if not overwrite:
             raise SystemExit(f"output exists: {output_pass_root}")
@@ -124,19 +142,30 @@ def merge_human_verified_passes(base_pass_root: Path, input_pass_roots: list[Pat
 
     annotation_root = output_pass_root / "annotations"
     annotation_root.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(base_pass_root / "annotations" / "oracle_ledger", annotation_root / "oracle_ledger")
+    shutil.copytree(
+        base_pass_root / "annotations" / "oracle_ledger",
+        annotation_root / "oracle_ledger",
+    )
 
     groups: list[dict[str, Any]] = []
     hidden_gold: list[dict[str, Any]] = []
     quality: list[dict[str, Any]] = []
-    probes_by_file: dict[str, list[dict[str, Any]]] = {filename: [] for filename in PROBE_FILES}
+    probes_by_file: dict[str, list[dict[str, Any]]] = {
+        filename: [] for filename in PROBE_FILES
+    }
     review_records: list[dict[str, Any]] = []
-    semantic_to_group_id: dict[tuple[str, tuple[str, ...], str, str, tuple[str, ...]], str] = {}
+    semantic_to_group_id: dict[
+        tuple[str, tuple[str, ...], str, str, tuple[str, ...]], str
+    ] = {}
     used_group_ids: set[str] = set()
 
     for pass_root in input_pass_roots:
         diag = pass_root / "annotations" / "diagnostics"
-        pass_groups = [row for row in read_jsonl(diag / "probe_groups.jsonl") if is_human_verified(row)]
+        pass_groups = [
+            row
+            for row in read_jsonl(diag / "probe_groups.jsonl")
+            if is_human_verified(row)
+        ]
         group_id_map: dict[str, str | None] = {}
         for row in pass_groups:
             old_group_id = str(row["probe_group_id"])
@@ -153,23 +182,43 @@ def merge_human_verified_passes(base_pass_root: Path, input_pass_roots: list[Pat
             used_group_ids.add(new_group_id)
 
         hidden_gold.extend(
-            remap_group_rows([row for row in read_jsonl(diag / "hidden_gold.jsonl") if is_human_verified(row)], group_id_map)
+            remap_group_rows(
+                [
+                    row
+                    for row in read_jsonl(diag / "hidden_gold.jsonl")
+                    if is_human_verified(row)
+                ],
+                group_id_map,
+            )
         )
         quality.extend(
             remap_group_rows(
                 [
                     row
                     for row in read_jsonl(diag / "diagnostic_quality.jsonl")
-                    if row.get("probe_group_id") in group_id_map and (is_human_verified(row) or group_id_map.get(str(row.get("probe_group_id"))))
+                    if row.get("probe_group_id") in group_id_map
+                    and (
+                        is_human_verified(row)
+                        or group_id_map.get(str(row.get("probe_group_id")))
+                    )
                 ],
                 group_id_map,
             )
         )
         for filename in PROBE_FILES:
             probes_by_file[filename].extend(
-                remap_group_rows([row for row in read_jsonl(diag / filename) if is_human_verified(row)], group_id_map)
+                remap_group_rows(
+                    [
+                        row
+                        for row in read_jsonl(diag / filename)
+                        if is_human_verified(row)
+                    ],
+                    group_id_map,
+                )
             )
-        review_records.extend(read_jsonl(pass_root / "review" / "codex_human_review_records.jsonl"))
+        review_records.extend(
+            read_jsonl(pass_root / "review" / "codex_human_review_records.jsonl")
+        )
 
     hidden_gold = dedupe(hidden_gold, "probe_group_id")
     quality = dedupe(quality, "probe_group_id")

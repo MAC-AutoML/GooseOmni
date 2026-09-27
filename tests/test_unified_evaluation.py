@@ -126,6 +126,6 @@ def test_run_refuses_changed_input_in_same_directory(tmp_path: Path) -> None:
 
 
 def test_parse_json_answer_recovers_fenced_content() -> None:
-    parsed, ok = parse_json_answer("answer: ```json\n{\"a\": 1}\n```")
+    parsed, ok = parse_json_answer('answer: ```json\n{"a": 1}\n```')
     assert ok is True
     assert parsed == {"a": 1}

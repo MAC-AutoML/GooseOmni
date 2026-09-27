@@ -13,12 +13,18 @@ def read_json(path: Path) -> dict[str, Any]:
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def result_task_id(path: Path) -> str | None:
@@ -53,9 +59,15 @@ def clear_result_files(output_root: Path) -> int:
     return removed
 
 
-def build_combined_results(queue: Path, result_roots: list[Path], output_root: Path) -> dict[str, Any]:
+def build_combined_results(
+    queue: Path, result_roots: list[Path], output_root: Path
+) -> dict[str, Any]:
     tasks = read_jsonl(queue)
-    expected_ids = [row["review_task_id"] for row in tasks if isinstance(row.get("review_task_id"), str)]
+    expected_ids = [
+        row["review_task_id"]
+        for row in tasks
+        if isinstance(row.get("review_task_id"), str)
+    ]
     expected_set = set(expected_ids)
     stale_results_removed = clear_result_files(output_root)
 
@@ -114,7 +126,9 @@ def build_combined_results(queue: Path, result_roots: list[Path], output_root: P
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Combine audio-confirmation result roots into one queue-ordered result root.")
+    parser = argparse.ArgumentParser(
+        description="Combine audio-confirmation result roots into one queue-ordered result root."
+    )
     parser.add_argument("--queue", type=Path, required=True)
     parser.add_argument("--result-root", type=Path, action="append", required=True)
     parser.add_argument("--output-root", type=Path, required=True)

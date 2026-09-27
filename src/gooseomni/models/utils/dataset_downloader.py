@@ -7,6 +7,7 @@ from pathlib import Path
 
 from gooseomni.config.paths import PATHS
 
+
 @dataclass(frozen=True)
 class DatasetSpec:
     level_key: str
@@ -43,14 +44,22 @@ def _required_video_paths(level_key: str, dataset_path: Path) -> list[str]:
     if level_key == "level1":
         if not isinstance(payload, list):
             return []
-        return [str(item.get("video_path", "")).strip() for item in payload if item.get("video_path")]
+        return [
+            str(item.get("video_path", "")).strip()
+            for item in payload
+            if item.get("video_path")
+        ]
 
     if level_key == "level2":
         if isinstance(payload, dict):
             payload = payload.get("data", [])
         if not isinstance(payload, list):
             return []
-        return [str(item.get("video_file", "")).strip() for item in payload if item.get("video_file")]
+        return [
+            str(item.get("video_file", "")).strip()
+            for item in payload
+            if item.get("video_file")
+        ]
 
     return []
 
@@ -69,7 +78,9 @@ def dataset_is_ready(level_key: str, dataset_path: Path, video_dir: Path) -> boo
     return True
 
 
-def ensure_default_dataset_available(level_key: str, dataset_path: Path, video_dir: Path) -> bool:
+def ensure_default_dataset_available(
+    level_key: str, dataset_path: Path, video_dir: Path
+) -> bool:
     spec = DATASET_SPECS.get(level_key)
     if spec is None:
         return False

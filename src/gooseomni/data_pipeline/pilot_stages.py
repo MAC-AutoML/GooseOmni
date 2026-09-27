@@ -38,15 +38,22 @@ def _read_records(path: Path, list_key: str | None = None) -> list[dict[str, Any
         if source.name.startswith("._"):
             continue
         payload = json.loads(source.read_text(encoding="utf-8"))
-        values = payload.get(list_key, []) if list_key and isinstance(payload, dict) else payload
+        values = (
+            payload.get(list_key, [])
+            if list_key and isinstance(payload, dict)
+            else payload
+        )
         if isinstance(values, list):
             rows.extend(row for row in values if isinstance(row, dict))
     return rows
 
+
 def align_stage(context: Any) -> dict[str, Any]:
     target = context.run_root / "artifacts/alignment.json"
     cached = cache_path(context, "alignment")
-    players = [player.player_id for game in context.config.games for player in game.players]
+    players = [
+        player.player_id for game in context.config.games for player in game.players
+    ]
     if cached is not None:
         payload = json.loads(cached.read_text(encoding="utf-8"))
         mode = "audited_cache"
@@ -76,8 +83,7 @@ def align_stage(context: Any) -> dict[str, Any]:
         common_start = max(
             0.0,
             max(
-                -float(row["offset"]) / float(row["scale"])
-                for row in mappings.values()
+                -float(row["offset"]) / float(row["scale"]) for row in mappings.values()
             ),
         )
         payload = {
@@ -110,7 +116,9 @@ def align_stage(context: Any) -> dict[str, Any]:
         clip_stats = {"mode": "cache_replay", "records": len(read_jsonl(clip_manifest))}
     else:
         if not os.getenv("SLURM_JOB_ID"):
-            raise RuntimeError("aligned clip materialization must run in a Slurm compute job")
+            raise RuntimeError(
+                "aligned clip materialization must run in a Slurm compute job"
+            )
         from .aligned_clips import materialize_aligned_clips
 
         clip_stats = materialize_aligned_clips(
@@ -143,22 +151,22 @@ def episode_stage(context: Any) -> dict[str, Any]:
         from .stages import run_command
 
         command = [
-                sys.executable,
-                "tools/annotation/run_qwen_round_boundary_annotation.py",
-                "--manifest-path",
-                str(context.run_root / "artifacts/clip_manifest.jsonl"),
-                "--output-dir",
-                str(source),
-                "--error-dir",
-                str(context.run_root / "errors/boundary_candidates"),
-                "--backend",
-                "local",
-                "--server-url",
-                server_url,
-                "--model",
-                context.config.perception_model,
-                "--resume",
-            ]
+            sys.executable,
+            "tools/annotation/run_qwen_round_boundary_annotation.py",
+            "--manifest-path",
+            str(context.run_root / "artifacts/clip_manifest.jsonl"),
+            "--output-dir",
+            str(source),
+            "--error-dir",
+            str(context.run_root / "errors/boundary_candidates"),
+            "--backend",
+            "local",
+            "--server-url",
+            server_url,
+            "--model",
+            context.config.perception_model,
+            "--resume",
+        ]
         limit = os.getenv("GOOSEOMNI_PILOT_LIMIT_CLIPS")
         if limit:
             command.extend(["--limit", limit])
@@ -179,7 +187,8 @@ def episode_stage(context: Any) -> dict[str, Any]:
         ]
         if incomplete:
             write_json(
-                context.run_root / f"quarantine/{game.game_id}_incomplete_coverage.json",
+                context.run_root
+                / f"quarantine/{game.game_id}_incomplete_coverage.json",
                 {
                     "common_coverage_start_sec": coverage_start,
                     "episodes": incomplete,
@@ -187,7 +196,9 @@ def episode_stage(context: Any) -> dict[str, Any]:
                 },
             )
         episodes.extend(row for row in game_episodes if row not in incomplete)
-    players = [player.player_id for game in context.config.games for player in game.players]
+    players = [
+        player.player_id for game in context.config.games for player in game.players
+    ]
     report = validate_episode_anchors(
         rows,
         episodes,
@@ -224,7 +235,9 @@ def trajectory_fusion_stage(context: Any) -> dict[str, Any]:
     episodes = json.loads(
         (context.run_root / "artifacts/episodes.json").read_text(encoding="utf-8")
     )
-    players = [player.player_id for game in context.config.games for player in game.players]
+    players = [
+        player.player_id for game in context.config.games for player in game.players
+    ]
     return review_and_write_trajectory(
         context.run_root, visual, audio, episodes, players
     )
@@ -235,14 +248,20 @@ def information_state_stage(context: Any) -> dict[str, Any]:
     episodes = json.loads(
         (context.run_root / "artifacts/episodes.json").read_text(encoding="utf-8")
     )
-    players = [player.player_id for game in context.config.games for player in game.players]
+    players = [
+        player.player_id for game in context.config.games for player in game.players
+    ]
     states = []
     for episode in episodes:
-        episode_nodes = [row for row in nodes if row["episode_id"] == episode["episode_id"]]
+        episode_nodes = [
+            row for row in nodes if row["episode_id"] == episode["episode_id"]
+        ]
         cutoffs = observed_cutoffs(episode_nodes)
         for cutoff in cutoffs:
             states.extend(
-                build_information_state(episode["episode_id"], player, cutoff, episode_nodes)
+                build_information_state(
+                    episode["episode_id"], player, cutoff, episode_nodes
+                )
                 for player in players
             )
     target = context.run_root / "artifacts/information_states.jsonl"
@@ -253,7 +272,9 @@ def information_state_stage(context: Any) -> dict[str, Any]:
 def tom_trial_build_stage(context: Any) -> dict[str, Any]:
     states = read_jsonl(context.run_root / "artifacts/information_states.jsonl")
     nodes = read_jsonl(context.run_root / "artifacts/trajectory_nodes.jsonl")
-    players = [player.player_id for game in context.config.games for player in game.players]
+    players = [
+        player.player_id for game in context.config.games for player in game.players
+    ]
     state_by_key = {
         (row["episode_id"], row["cutoff_abs_sec"], row["player_id"]): row
         for row in states
@@ -264,7 +285,9 @@ def tom_trial_build_stage(context: Any) -> dict[str, Any]:
             row for row in nodes if row["episode_id"] == state["episode_id"]
         ]
         for target in (player for player in players if player != state["player_id"]):
-            target_state = state_by_key[(state["episode_id"], state["cutoff_abs_sec"], target)]
+            target_state = state_by_key[
+                (state["episode_id"], state["cutoff_abs_sec"], target)
+            ]
             for layer in TOM_LAYERS:
                 evidence = evidence_for_layer(state, episode_nodes, target, layer)[:4]
                 evidence = subject_only_evidence(evidence, target_state)
@@ -280,15 +303,16 @@ def tom_trial_build_stage(context: Any) -> dict[str, Any]:
                             str(node.get("player_id", "")),
                             str(node.get("speaker_id", "")),
                             *(str(value) for value in node.get("visible_players", [])),
-                            *(str(value) for value in node.get("mentioned_players", [])),
+                            *(
+                                str(value)
+                                for value in node.get("mentioned_players", [])
+                            ),
                         }
                         for item in node.get("evidence_asset_ids", [])
                     }
                 )[:4]
                 gold = structured_gold(layer, state, target, episode_nodes, evidence)
-                hidden = sorted(
-                    set(hidden) | set(gold.get("future_evidence_ids", []))
-                )
+                hidden = sorted(set(hidden) | set(gold.get("future_evidence_ids", [])))
                 trials.extend(
                     build_trial_group(
                         state,
@@ -319,10 +343,15 @@ def validate_stage(context: Any) -> dict[str, Any]:
     )
     nodes = read_jsonl(context.run_root / "artifacts/trajectory_nodes.jsonl")
     states = read_jsonl(context.run_root / "artifacts/information_states.jsonl")
-    candidates = {row["trial_id"]: row for row in read_jsonl(context.run_root / "candidates/tom_trials.jsonl")}
+    candidates = {
+        row["trial_id"]: row
+        for row in read_jsonl(context.run_root / "candidates/tom_trials.jsonl")
+    }
     decisions = read_jsonl(context.run_root / "review_decisions.jsonl")
     trials = accepted_trials(candidates, decisions)
-    players = [player.player_id for game in context.config.games for player in game.players]
+    players = [
+        player.player_id for game in context.config.games for player in game.players
+    ]
     report = validate_pilot(
         alignment,
         episodes,
@@ -349,7 +378,10 @@ def package_stage(context: Any) -> dict[str, Any]:
     if target.exists():
         raise FileExistsError(f"refusing to overwrite published pilot: {target}")
     decisions = read_jsonl(context.run_root / "review_decisions.jsonl")
-    candidates = {row["trial_id"]: row for row in read_jsonl(context.run_root / "candidates/tom_trials.jsonl")}
+    candidates = {
+        row["trial_id"]: row
+        for row in read_jsonl(context.run_root / "candidates/tom_trials.jsonl")
+    }
     accepted = accepted_trials(candidates, decisions)
     (target / "public").mkdir(parents=True)
     (target / "private").mkdir(parents=True)
@@ -361,7 +393,9 @@ def package_stage(context: Any) -> dict[str, Any]:
         "gold_source": "model_verified",
         "frozen_diagnostics": [
             {
-                "path": str((context.config.registry or {}).get("frozen_diagnostic_run", "")),
+                "path": str(
+                    (context.config.registry or {}).get("frozen_diagnostic_run", "")
+                ),
                 "label": "weak_epistemic_diagnostic",
                 "diagnostic_only": True,
             }

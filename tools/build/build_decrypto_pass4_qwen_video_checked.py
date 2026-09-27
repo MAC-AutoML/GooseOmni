@@ -1,28 +1,14 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import collections
 import json
 import re
 import shutil
-import sys
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 from gooseomni.benchmark.decrypto_diagnostics import write_json, write_jsonl
-
 
 PROBE_FILES = [
     "probes_A_pre_reveal.jsonl",
@@ -69,7 +55,11 @@ def parse_args() -> argparse.Namespace:
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -89,9 +79,19 @@ def result_rows(root: Path) -> list[dict[str, Any]]:
 
 def source_group_id(row: dict[str, Any]) -> str | None:
     parsed = row.get("parsed") if isinstance(row.get("parsed"), dict) else {}
-    corrected_group = parsed.get("corrected_probe_group") if isinstance(parsed.get("corrected_probe_group"), dict) else {}
-    source_group = (row.get("source_task", {}).get("probe_group", {}) or {}) if isinstance(row.get("source_task"), dict) else {}
-    group_id = corrected_group.get("probe_group_id") or source_group.get("probe_group_id")
+    corrected_group = (
+        parsed.get("corrected_probe_group")
+        if isinstance(parsed.get("corrected_probe_group"), dict)
+        else {}
+    )
+    source_group = (
+        (row.get("source_task", {}).get("probe_group", {}) or {})
+        if isinstance(row.get("source_task"), dict)
+        else {}
+    )
+    group_id = corrected_group.get("probe_group_id") or source_group.get(
+        "probe_group_id"
+    )
     return str(group_id) if group_id else None
 
 
@@ -127,15 +127,29 @@ def qwen_video_gate(row: dict[str, Any]) -> tuple[bool, list[str]]:
 
 def prompt_is_safe(probe: dict[str, Any]) -> bool:
     text = str(probe.get("prompt") or "")
-    if probe.get("probe_type") == "A_pre_reveal_belief" and "QUERY_VARIABLE_PUBLIC_FORM_JSON" not in text:
+    if (
+        probe.get("probe_type") == "A_pre_reveal_belief"
+        and "QUERY_VARIABLE_PUBLIC_FORM_JSON" not in text
+    ):
         return False
-    if probe.get("probe_type") == "D_perspective_taking_prediction" and "TARGET_LISTENER_CONTEXT_JSON" in text:
+    if (
+        probe.get("probe_type") == "D_perspective_taking_prediction"
+        and "TARGET_LISTENER_CONTEXT_JSON" in text
+    ):
         return False
-    return not any(pattern in text for pattern in PROMPT_LEAK_PATTERNS if probe.get("probe_type") == "A_pre_reveal_belief")
+    return not any(
+        pattern in text
+        for pattern in PROMPT_LEAK_PATTERNS
+        if probe.get("probe_type") == "A_pre_reveal_belief"
+    )
 
 
-def accepted_rows(pass_root: Path, qwen_results_root: Path) -> tuple[set[str], list[dict[str, Any]]]:
-    groups = read_jsonl(pass_root / "annotations" / "diagnostics" / "probe_groups.jsonl")
+def accepted_rows(
+    pass_root: Path, qwen_results_root: Path
+) -> tuple[set[str], list[dict[str, Any]]]:
+    groups = read_jsonl(
+        pass_root / "annotations" / "diagnostics" / "probe_groups.jsonl"
+    )
     group_ids = {row["probe_group_id"] for row in groups}
     gate_rows: list[dict[str, Any]] = []
     accepted: set[str] = set()
@@ -164,11 +178,20 @@ def accepted_rows(pass_root: Path, qwen_results_root: Path) -> tuple[set[str], l
     return accepted, gate_rows
 
 
-def promote_with_safe_prompts(pass_root: Path, output_root: Path, accepted_group_ids: set[str], gate_rows: list[dict[str, Any]]) -> None:
+def promote_with_safe_prompts(
+    pass_root: Path,
+    output_root: Path,
+    accepted_group_ids: set[str],
+    gate_rows: list[dict[str, Any]],
+) -> None:
     src_diag = pass_root / "annotations" / "diagnostics"
     dst_diag = output_root / "annotations" / "diagnostics"
     dst_diag.mkdir(parents=True, exist_ok=True)
-    accepted_by_group = {row["probe_group_id"]: row for row in gate_rows if row.get("gate_decision") == "accept"}
+    accepted_by_group = {
+        row["probe_group_id"]: row
+        for row in gate_rows
+        if row.get("gate_decision") == "accept"
+    }
 
     groups = []
     for group in read_jsonl(src_diag / "probe_groups.jsonl"):
@@ -176,7 +199,9 @@ def promote_with_safe_prompts(pass_root: Path, output_root: Path, accepted_group
             promoted = dict(group)
             promoted["gold_source"] = "qwen_checked"
             promoted["review_status"] = "pass4_qwen_video_checked_codex_safe_prompts"
-            promoted["qwen_review_file"] = accepted_by_group[group["probe_group_id"]]["result_file"]
+            promoted["qwen_review_file"] = accepted_by_group[group["probe_group_id"]][
+                "result_file"
+            ]
             promoted["prompt_policy"] = "input_pass_codex_safe_prompts_preserved"
             groups.append(promoted)
         else:
@@ -189,7 +214,12 @@ def promote_with_safe_prompts(pass_root: Path, output_root: Path, accepted_group
         for probe in read_jsonl(src_diag / filename):
             if probe["probe_group_id"] in accepted_group_ids:
                 if not prompt_is_safe(probe):
-                    unsafe_prompts.append({"probe_id": probe.get("probe_id"), "probe_type": probe.get("probe_type")})
+                    unsafe_prompts.append(
+                        {
+                            "probe_id": probe.get("probe_id"),
+                            "probe_type": probe.get("probe_type"),
+                        }
+                    )
                 promoted = dict(probe)
                 promoted["gold_source"] = "qwen_checked"
                 promoted["review_status"] = "pass4_qwen_video_checked_prompt_preserved"
@@ -200,7 +230,9 @@ def promote_with_safe_prompts(pass_root: Path, output_root: Path, accepted_group
         write_jsonl(dst_diag / filename, rows)
 
     if unsafe_prompts:
-        raise SystemExit(f"accepted groups contain unsafe input-pass prompts: {unsafe_prompts[:5]}")
+        raise SystemExit(
+            f"accepted groups contain unsafe input-pass prompts: {unsafe_prompts[:5]}"
+        )
 
     for filename in ["hidden_gold.jsonl", "diagnostic_quality.jsonl"]:
         rows = []
@@ -211,7 +243,9 @@ def promote_with_safe_prompts(pass_root: Path, output_root: Path, accepted_group
                     promoted["gold_source"] = "qwen_checked"
                 if "recommended_gold_source" in promoted:
                     promoted["recommended_gold_source"] = "qwen_checked"
-                promoted["review_status"] = "pass4_qwen_video_checked_codex_safe_prompts"
+                promoted["review_status"] = (
+                    "pass4_qwen_video_checked_codex_safe_prompts"
+                )
                 promoted["prompt_policy"] = "input_pass_codex_safe_prompts_preserved"
                 rows.append(promoted)
             else:
@@ -229,7 +263,9 @@ def main() -> None:
         shutil.rmtree(dst)
 
     (dst / "annotations").mkdir(parents=True)
-    shutil.copytree(src / "annotations" / "oracle_ledger", dst / "annotations" / "oracle_ledger")
+    shutil.copytree(
+        src / "annotations" / "oracle_ledger", dst / "annotations" / "oracle_ledger"
+    )
     for dirname in ["docs", "scripts", "slurm", "tests"]:
         if (src / dirname).exists():
             shutil.copytree(src / dirname, dst / dirname, dirs_exist_ok=True)
@@ -239,7 +275,11 @@ def main() -> None:
 
     review_dir = dst / "review"
     review_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(args.qwen_results_root, review_dir / "qwen3_omni_high_quality_results", dirs_exist_ok=True)
+    shutil.copytree(
+        args.qwen_results_root,
+        review_dir / "qwen3_omni_high_quality_results",
+        dirs_exist_ok=True,
+    )
     write_jsonl(review_dir / "qwen_video_review_gate.jsonl", gate_rows)
     accepted = [row for row in gate_rows if row["gate_decision"] == "accept"]
     rejected = [row for row in gate_rows if row["gate_decision"] == "reject"]
@@ -251,7 +291,11 @@ def main() -> None:
         "accepted_groups": len(accepted),
         "rejected_groups": len(rejected),
         "accepted_probe_group_ids": sorted(accepted_group_ids),
-        "reject_reason_counts": dict(collections.Counter(reason for row in rejected for reason in row["gate_reasons"])),
+        "reject_reason_counts": dict(
+            collections.Counter(
+                reason for row in rejected for reason in row["gate_reasons"]
+            )
+        ),
         "prompt_policy": "preserve_input_pass_codex_safe_prompts_do_not_use_qwen_corrected_prompts",
         "status": "pass4_qwen_video_checked_gate_complete",
     }

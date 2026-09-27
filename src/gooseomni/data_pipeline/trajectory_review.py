@@ -50,9 +50,7 @@ def load_visual_error_candidates(
             normalized = normalize_pass_event(
                 normalize_pov_event_payload(item, clip), "visual"
             )
-            normalized["evidence_id"] = (
-                f"{clip.clip_id}:visual_quarantine:{index:02d}"
-            )
+            normalized["evidence_id"] = f"{clip.clip_id}:visual_quarantine:{index:02d}"
             normalized["quality_gate_failed"] = True
             rows.append(normalized)
     return rows
@@ -130,8 +128,12 @@ def _apply_decisions(
 ) -> list[dict[str, Any]]:
     candidates = {str(row["trajectory_node_id"]): row for row in visual_nodes}
     decision_ids = [str(row.get("trajectory_node_id")) for row in decisions]
-    if len(decision_ids) != len(set(decision_ids)) or set(decision_ids) != set(candidates):
-        raise ValueError("trajectory decisions must cover each visual node exactly once")
+    if len(decision_ids) != len(set(decision_ids)) or set(decision_ids) != set(
+        candidates
+    ):
+        raise ValueError(
+            "trajectory decisions must cover each visual node exactly once"
+        )
     episode_by_id = {str(row["episode_id"]): row for row in episodes}
     accepted = []
     for decision in decisions:
@@ -169,7 +171,9 @@ def _apply_decisions(
         if node.get("event_type") in {"task_ui", "interaction"}:
             node["movement_transition"] = None
         if node.get("global_fact") and not node.get("public_ui"):
-            raise ValueError(f"private trajectory cannot become a global fact: {node_id}")
+            raise ValueError(
+                f"private trajectory cannot become a global fact: {node_id}"
+            )
         if node.get("public_ui") and node.get("event_type") not in PUBLIC_VISUAL_TYPES:
             raise ValueError(f"invalid public UI event type: {node_id}")
         if players is not None:
@@ -222,7 +226,8 @@ def review_and_write_trajectory(
         write_json(run_root / "quarantine/audio_conflicts.json", audio_issues)
     rejected_audio_ids = {row["trajectory_node_id"] for row in audio_issues}
     accepted_audio = [
-        row for row in audio_nodes
+        row
+        for row in audio_nodes
         if row["trajectory_node_id"] not in rejected_audio_ids
     ]
     accepted = reviewed_visual + accepted_audio

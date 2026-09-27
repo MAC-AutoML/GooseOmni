@@ -1,25 +1,11 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 from gooseomni.benchmark.decrypto_diagnostics import read_jsonl, write_jsonl
-
 
 QUALITY_PROFILE = {
     "QWEN3_OMNI_MAX_TOKENS": 16384,
@@ -39,7 +25,9 @@ TEMPLATE_PRIORITY = {
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build high-value Qwen3-Omni review queue for Decrypto-style probes.")
+    parser = argparse.ArgumentParser(
+        description="Build high-value Qwen3-Omni review queue for Decrypto-style probes."
+    )
     parser.add_argument("--pass-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--limit", type=int, default=80)
@@ -50,7 +38,9 @@ def by_id(rows: list[dict[str, Any]], key: str) -> dict[str, dict[str, Any]]:
     return {str(row[key]): row for row in rows if row.get(key) is not None}
 
 
-def score_group(group: dict[str, Any], links_by_claim: dict[str, list[dict[str, Any]]]) -> int:
+def score_group(
+    group: dict[str, Any], links_by_claim: dict[str, list[dict[str, Any]]]
+) -> int:
     score = TEMPLATE_PRIORITY.get(str(group.get("template")), 10)
     score += min(len(group.get("related_claim_ids", [])), 8)
     if group.get("hidden_event_ids_for_target"):
@@ -71,12 +61,18 @@ def score_group(group: dict[str, Any], links_by_claim: dict[str, list[dict[str, 
 
 
 def issue_codes(group: dict[str, Any], links: list[dict[str, Any]]) -> list[str]:
-    codes = ["verify_video_grounding", "verify_local_awareness", "promote_only_if_leakage_safe"]
+    codes = [
+        "verify_video_grounding",
+        "verify_local_awareness",
+        "promote_only_if_leakage_safe",
+    ]
     template = group.get("template")
     if template == "contradicted_alibi":
         codes.extend(["verify_claim_truth_contradiction", "repair_claim_type"])
     elif template == "vote_influence":
-        codes.extend(["verify_strategy_claim", "verify_speaker_listener_information_difference"])
+        codes.extend(
+            ["verify_strategy_claim", "verify_speaker_listener_information_difference"]
+        )
     elif template == "delayed_public_reveal":
         codes.extend(["verify_private_to_public_reveal", "verify_reveal_timing"])
     elif template == "private_witness":
@@ -101,9 +97,20 @@ def build_queue(pass_root: Path, limit: int) -> list[dict[str, Any]]:
     for group in groups:
         by_template.setdefault(str(group.get("template")), []).append(group)
     for template_groups in by_template.values():
-        template_groups.sort(key=lambda group: (-score_group(group, links_by_claim), group.get("probe_group_id", "")))
+        template_groups.sort(
+            key=lambda group: (
+                -score_group(group, links_by_claim),
+                group.get("probe_group_id", ""),
+            )
+        )
 
-    template_order = ["contradicted_alibi", "vote_influence", "delayed_public_reveal", "private_witness", "hidden_event_awareness"]
+    template_order = [
+        "contradicted_alibi",
+        "vote_influence",
+        "delayed_public_reveal",
+        "private_witness",
+        "hidden_event_awareness",
+    ]
     selected: list[dict[str, Any]] = []
     selected_ids: set[str] = set()
     min_per_template = max(1, min(8, limit // max(1, len(template_order))))
@@ -119,7 +126,13 @@ def build_queue(pass_root: Path, limit: int) -> list[dict[str, Any]]:
                 break
         if len(selected) >= limit:
             break
-    remaining = sorted(groups, key=lambda group: (-score_group(group, links_by_claim), group.get("probe_group_id", "")))
+    remaining = sorted(
+        groups,
+        key=lambda group: (
+            -score_group(group, links_by_claim),
+            group.get("probe_group_id", ""),
+        ),
+    )
     for group in remaining:
         if len(selected) >= limit:
             break
@@ -130,9 +143,21 @@ def build_queue(pass_root: Path, limit: int) -> list[dict[str, Any]]:
 
     tasks = []
     for idx, group in enumerate(selected, start=1):
-        related_links = [link for claim_id in group.get("related_claim_ids", []) for link in links_by_claim.get(claim_id, [])]
-        anchor_events = [events_by_id[event_id] for event_id in group.get("anchor_event_ids", []) if event_id in events_by_id]
-        related_claims = [claims_by_id[claim_id] for claim_id in group.get("related_claim_ids", []) if claim_id in claims_by_id]
+        related_links = [
+            link
+            for claim_id in group.get("related_claim_ids", [])
+            for link in links_by_claim.get(claim_id, [])
+        ]
+        anchor_events = [
+            events_by_id[event_id]
+            for event_id in group.get("anchor_event_ids", [])
+            if event_id in events_by_id
+        ]
+        related_claims = [
+            claims_by_id[claim_id]
+            for claim_id in group.get("related_claim_ids", [])
+            if claim_id in claims_by_id
+        ]
         tasks.append(
             {
                 "review_task_id": f"pass8_hqv3_{idx:04d}",
@@ -159,7 +184,13 @@ def main() -> None:
     args = parse_args()
     tasks = build_queue(args.pass_root, args.limit)
     write_jsonl(args.output, tasks)
-    print(json.dumps({"ok": True, "queue": args.output.as_posix(), "tasks": len(tasks)}, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {"ok": True, "queue": args.output.as_posix(), "tasks": len(tasks)},
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

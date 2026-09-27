@@ -1,23 +1,26 @@
-import torch
-import os
-import sys
-from pathlib import Path
-ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-import tempfile
 import argparse
-from flask import Flask, request, jsonify
 import logging
-from gooseomni.config.paths import PATHS
-from transformers import Qwen2_5OmniForConditionalGeneration, Qwen2_5OmniProcessor
-from qwen_omni_utils import process_mm_info
+import os
+import tempfile
+from pathlib import Path
 
+import torch
+from flask import Flask, jsonify, request
+from qwen_omni_utils import process_mm_info
+from transformers import Qwen2_5OmniForConditionalGeneration, Qwen2_5OmniProcessor
+
+from gooseomni.config.paths import PATHS
 from gooseomni.config.settings import CONFIG
+from gooseomni.models.model_server.local_common.gpu_visibility import (
+    configure_cuda_visible_devices,
+)
 from gooseomni.models.model_server.local_common.http import parse_infer_request
-from gooseomni.models.model_server.local_common.gpu_visibility import configure_cuda_visible_devices
-from gooseomni.models.model_server.local_common.media_masking import create_black_frame_video
+from gooseomni.models.model_server.local_common.media_masking import (
+    create_black_frame_video,
+)
+
+ROOT = Path(__file__).resolve().parents[3]
+
 
 app = Flask(__name__)
 logger = logging.getLogger("qwen2_5_omni_server")
@@ -35,15 +38,19 @@ if not logger.handlers:
 SYSTEM_PROMPT = "You are Qwen, a virtual human developed by the Qwen Team, Alibaba Group, capable of perceiving auditory and visual inputs, as well as generating text and speech."
 
 # Global configuration
-MODEL_PATH = CONFIG.model("qwen2_5_omni").get("model_path") or "/publicssd/xty/models/Qwen2.5-Omni-7B"
+MODEL_PATH = (
+    CONFIG.model("qwen2_5_omni").get("model_path")
+    or "/publicssd/xty/models/Qwen2.5-Omni-7B"
+)
 USE_AUDIO_IN_VIDEO = CONFIG.model("qwen2_5_omni").get("use_audio_in_video", True)
 MAX_TOKENS = CONFIG.model("qwen2_5_omni").get("max_tokens", 50)
 TEMPERATURE = CONFIG.model("qwen2_5_omni").get("temperature", 0.1)
 
+
 # GPU configuration - supports environment variables and CLI arguments
 def get_gpu_id():
     """Resolve the first visible GPU for this process."""
-    gpu_id = os.environ.get('CUDA_VISIBLE_DEVICES')
+    gpu_id = os.environ.get("CUDA_VISIBLE_DEVICES")
     if gpu_id is not None:
         try:
             return int(gpu_id.split(",")[0].strip())
@@ -55,6 +62,7 @@ def get_gpu_id():
     if visible_gpus:
         return int(visible_gpus[0])
     return 0
+
 
 # Global variables
 gpu_id = get_gpu_id()
@@ -107,9 +115,7 @@ def build_conversation(video_path, question, use_video=True, use_audio=True):
     return [
         {
             "role": "system",
-            "content": [
-                {"type": "text", "text": SYSTEM_PROMPT}
-            ],
+            "content": [{"type": "text", "text": SYSTEM_PROMPT}],
         },
         {
             "role": "user",
@@ -118,7 +124,9 @@ def build_conversation(video_path, question, use_video=True, use_audio=True):
     ]
 
 
-def process_video_analysis(video_path, question, use_video, use_audio, visual_mask=False, temp_dir=None):
+def process_video_analysis(
+    video_path, question, use_video, use_audio, visual_mask=False, temp_dir=None
+):
     """Process video analysis"""
     global model, processor
     use_audio_in_video = USE_AUDIO_IN_VIDEO and use_audio
@@ -127,69 +135,69 @@ def process_video_analysis(video_path, question, use_video, use_audio, visual_ma
         if temp_dir is None:
             raise RuntimeError("temp_dir is required for visual_mask=True")
         inference_video_path = create_black_frame_video(video_path, temp_dir)
-    
+
     # Build conversation
-    conversation = build_conversation(inference_video_path, question, use_video=use_video, use_audio=use_audio)
-    
+    conversation = build_conversation(
+        inference_video_path, question, use_video=use_video, use_audio=use_audio
+    )
+
     # Prepare inputs
-    text = processor.apply_chat_template(conversation, add_generation_prompt=True, tokenize=False)
-    audios, images, videos = process_mm_info(conversation, use_audio_in_video=use_audio_in_video)
+    text = processor.apply_chat_template(
+        conversation, add_generation_prompt=True, tokenize=False
+    )
+    audios, images, videos = process_mm_info(
+        conversation, use_audio_in_video=use_audio_in_video
+    )
     if not use_audio:
         audios = None
     if not use_video:
         images = None
         videos = None
     logger.info("Request media: video=%s audio=%s", use_video, use_audio)
-    
+
     inputs = processor(
-        text=text, 
-        audio=audios, 
-        images=images, 
+        text=text,
+        audio=audios,
+        images=images,
         videos=videos,
-        return_tensors="pt", 
-        padding=True, 
-        use_audio_in_video=use_audio_in_video
+        return_tensors="pt",
+        padding=True,
+        use_audio_in_video=use_audio_in_video,
     )
     inputs = inputs.to(model.device).to(model.dtype)
 
     # Inference with max_tokens limit
     text_ids, _ = model.generate(
-        **inputs, 
+        **inputs,
         use_audio_in_video=use_audio_in_video,
         max_new_tokens=MAX_TOKENS,
         temperature=TEMPERATURE,
-        do_sample=True
+        do_sample=True,
     )
     result = processor.batch_decode(
-        text_ids, 
-        skip_special_tokens=True, 
-        clean_up_tokenization_spaces=False
+        text_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
     )
 
     return result[0] if result else ""
 
 
-@app.route('/health', methods=['GET'])
+@app.route("/health", methods=["GET"])
 def health_check():
     """Health check endpoint"""
-    return jsonify({
-        "status": "ok", 
-        "model_loaded": model_loaded,
-        "gpu_id": gpu_id
-    })
+    return jsonify({"status": "ok", "model_loaded": model_loaded, "gpu_id": gpu_id})
 
 
-@app.route('/v1/infer', methods=['POST'])
+@app.route("/v1/infer", methods=["POST"])
 def analyze_video():
     """Analyze video endpoint - file upload only"""
     global model, processor
-    
+
     if not model_loaded:
         return jsonify({"error": "Model is not loaded"}), 500
-    
+
     temp_dir = None
     temp_path = None
-    
+
     try:
         payload = parse_infer_request(request, default_audio=USE_AUDIO_IN_VIDEO)
         question = payload.prompt
@@ -200,23 +208,19 @@ def analyze_video():
             temp_dir = tempfile.mkdtemp()
             temp_path = os.path.join(temp_dir, payload.upload.filename)
             payload.upload.save(temp_path)
-        
+
         # Process video analysis
-        answer = process_video_analysis(temp_path, question, use_video, use_audio, visual_mask, temp_dir)
-        
+        answer = process_video_analysis(
+            temp_path, question, use_video, use_audio, visual_mask, temp_dir
+        )
+
         # Simplified response format
-        return jsonify({
-            "status": "success", 
-            "answer": answer.strip()
-        })
-        
+        return jsonify({"status": "success", "answer": answer.strip()})
+
     except Exception as e:
         logger.error("Analyze failed: %s", e)
-        return jsonify({
-            "status": "error", 
-            "error": str(e)
-        }), 500
-        
+        return jsonify({"status": "error", "error": str(e)}), 500
+
     finally:
         # Clean temporary files
         try:
@@ -234,41 +238,36 @@ def parse_args():
     default_port = CONFIG.model("qwen2_5_omni").get("port") or 5089
     parser = argparse.ArgumentParser(description="Qwen Omni Video Analysis Server")
     parser.add_argument(
-        "--gpu-id", 
-        type=int, 
+        "--gpu-id",
+        type=int,
         default=None,
-        help="Specify GPU ID (default: 0, or set via CUDA_VISIBLE_DEVICES)"
+        help="Specify GPU ID (default: 0, or set via CUDA_VISIBLE_DEVICES)",
     )
     parser.add_argument(
-        "--port", 
-        type=int, 
-        default=default_port,
-        help="Server port (default: 5089)"
+        "--port", type=int, default=default_port, help="Server port (default: 5089)"
     )
     parser.add_argument(
-        "--host", 
-        default=default_host,
-        help="Server host address (default: 127.0.0.1)"
+        "--host", default=default_host, help="Server host address (default: 127.0.0.1)"
     )
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Parse command-line arguments
     args = parse_args()
-    
+
     # Update GPU ID if provided via CLI.
     if args.gpu_id is not None:
         gpu_id = args.gpu_id
         # Set environment variable.
-        os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
         print(f"Using GPU from command-line argument {gpu_id}")
     else:
         print(f"Using GPU {gpu_id} (from env var or default)")
-    
+
     # Load model on startup.
     load_model()
-    
+
     # Start server.
     print(f"Starting server: {args.host}:{args.port}")
     app.run(host=args.host, port=args.port, debug=False)

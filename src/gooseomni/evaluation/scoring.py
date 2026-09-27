@@ -59,9 +59,7 @@ def _group_metrics(rows: list[dict[str, Any]], field: str) -> dict[str, Any]:
     return {name: _basic_metrics(items) for name, items in sorted(groups.items())}
 
 
-def score_evaluation(
-    run_root: str | Path, benchmark: str | Path
-) -> dict[str, Any]:
+def score_evaluation(run_root: str | Path, benchmark: str | Path) -> dict[str, Any]:
     run_path = Path(run_root)
     benchmark_root = resolve_benchmark_root(benchmark)
     benchmark_manifest = json.loads(
@@ -75,12 +73,18 @@ def score_evaluation(
         if not key:
             continue
         previous = latest_by_key.get(key)
-        if previous is None or row.get("status") == "ok" or previous.get("status") != "ok":
+        if (
+            previous is None
+            or row.get("status") == "ok"
+            or previous.get("status") != "ok"
+        ):
             latest_by_key[key] = row
     responses = list(latest_by_key.values())
     groups: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
     for row in responses:
-        groups[(str(row.get("track")), str(row.get("model")), str(row.get("modality")))].append(row)
+        groups[
+            (str(row.get("track")), str(row.get("model")), str(row.get("modality")))
+        ].append(row)
     reports: dict[str, Any] = {}
     for (track_name, model, modality), rows in sorted(groups.items()):
         key = f"{track_name}/{model}/{modality}"

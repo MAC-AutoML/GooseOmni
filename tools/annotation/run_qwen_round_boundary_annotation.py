@@ -1,22 +1,7 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
-import sys
 from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from gooseomni.annotation.backends.qwen_omni import QwenBackendConfig, create_backend
 from gooseomni.annotation.runner import (
@@ -24,6 +9,8 @@ from gooseomni.annotation.runner import (
     filter_clips,
     load_manifest,
 )
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def parse_args() -> argparse.Namespace:
@@ -45,7 +32,9 @@ def parse_args() -> argparse.Namespace:
         default="annotations/round_boundary_errors_manual_sync_v1",
         type=Path,
     )
-    parser.add_argument("--backend", default="mock", choices=["mock", "local", "openai"])
+    parser.add_argument(
+        "--backend", default="mock", choices=["mock", "local", "openai"]
+    )
     parser.add_argument("--server-url", default=None)
     parser.add_argument("--base-url", default=None)
     parser.add_argument("--model", default="qwen3-omni")

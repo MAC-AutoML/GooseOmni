@@ -1,5 +1,16 @@
-from .pipeline_normalize import *  # noqa: F401,F403
+import json
+from collections.abc import Iterable
+from pathlib import Path
+from typing import Any
+
+from pydantic import BaseModel
+
+from gooseomni.benchmark.io import resolve_video_path, safe_json_loads, write_jsonl
+from gooseomni.benchmark.pipeline_normalize import output_root, validate_player_id
+from gooseomni.benchmark.schema_events import POVRef, Segment
+
 from .pipeline_normalize import _clamp_certainty
+
 
 def parse_json_array(raw_response: str) -> list[dict[str, Any]]:
     payload = safe_json_loads(raw_response)
@@ -10,7 +21,9 @@ def parse_json_array(raw_response: str) -> list[dict[str, Any]]:
     return payload
 
 
-def parse_partial_json_array_objects(raw_response: str, *, max_items: int = 4) -> list[dict[str, Any]]:
+def parse_partial_json_array_objects(
+    raw_response: str, *, max_items: int = 4
+) -> list[dict[str, Any]]:
     """Recover complete objects from a truncated JSON array response."""
     start = raw_response.find("[")
     if start < 0:
@@ -47,7 +60,9 @@ def parse_partial_json_array_objects(raw_response: str, *, max_items: int = 4) -
                         continue
                     if isinstance(parsed, dict):
                         parsed["needs_human_review"] = True
-                        parsed["certainty"] = min(_clamp_certainty(parsed.get("certainty"), 0.5), 0.5)
+                        parsed["certainty"] = min(
+                            _clamp_certainty(parsed.get("certainty"), 0.5), 0.5
+                        )
                         items.append(parsed)
                         if len(items) >= max_items:
                             break
@@ -103,7 +118,9 @@ def parse_partial_json_object(raw_response: str) -> dict[str, Any] | None:
                     return None
                 if isinstance(parsed, dict):
                     parsed["needs_human_review"] = True
-                    parsed["certainty"] = min(_clamp_certainty(parsed.get("certainty"), 0.5), 0.5)
+                    parsed["certainty"] = min(
+                        _clamp_certainty(parsed.get("certainty"), 0.5), 0.5
+                    )
                     return parsed
                 return None
     return None
@@ -239,7 +256,9 @@ def filter_segments(
 def filter_povs(segment: Segment, player_id: str | None = None) -> list[POVRef]:
     if player_id is not None:
         validate_player_id(player_id)
-    return [pov for pov in segment.povs if player_id is None or pov.player_id == player_id]
+    return [
+        pov for pov in segment.povs if player_id is None or pov.player_id == player_id
+    ]
 
 
 def video_path_for(dataset_root: Path, pov: POVRef) -> Path:
@@ -256,7 +275,9 @@ def annotate_text_with_segment_context(
     if getattr(backend, "requires_video_for_text", False):
         context_pov = None
         if player_id is not None:
-            context_pov = next((pov for pov in segment.povs if pov.player_id == player_id), None)
+            context_pov = next(
+                (pov for pov in segment.povs if pov.player_id == player_id), None
+            )
         if context_pov is None:
             context_pov = segment.povs[0]
         return backend.annotate_video(video_path_for(dataset_root, context_pov), prompt)

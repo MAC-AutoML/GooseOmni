@@ -3,17 +3,18 @@
 """Deprecated compatibility entry for the unified GooseOmni evaluator."""
 
 from __future__ import annotations
-
 import sys
 import warnings
 from pathlib import Path
+from gooseomni.cli import main  # noqa: E402
+
 
 REPO_ROOT = next(
-    parent for parent in Path(__file__).resolve().parents if (parent / "pyproject.toml").is_file()
+    parent
+    for parent in Path(__file__).resolve().parents
+    if (parent / "pyproject.toml").is_file()
 )
 sys.path[:0] = [str(REPO_ROOT / "src"), str(REPO_ROOT)]
-
-from gooseomni.cli import main  # noqa: E402
 
 
 if __name__ == "__main__":

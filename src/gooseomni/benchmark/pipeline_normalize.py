@@ -1,15 +1,18 @@
 from __future__ import annotations
 
-import traceback
-import os
 import json
+import os
+import traceback
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
-from pydantic import BaseModel
-
-from .io import resolve_video_path, safe_json_loads, write_json, write_jsonl
-from .schema import AnnotationError, POVRef, Segment, VALID_PLAYER_SET
+from .io import (  # noqa: F401
+    resolve_video_path,
+    safe_json_loads,
+    write_json,
+    write_jsonl,
+)
+from .schema import VALID_PLAYER_SET, AnnotationError, POVRef, Segment
 
 PLAYER_ALIASES = {
     "末将": "mojiang",
@@ -31,13 +34,11 @@ def _clamp_certainty(value: Any, default: float = 0.5) -> float:
         number = default
     return max(0.0, min(1.0, number))
 
-
 def _short_text(value: Any, limit: int = 120) -> str:
     if value is None:
         return "unknown"
     text = str(value).replace("\n", " ").strip()
     return text[:limit] if text else "unknown"
-
 
 def _short_list(values: Any, limit: int = 6) -> list[str]:
     if not isinstance(values, list):
@@ -51,16 +52,18 @@ def _short_list(values: Any, limit: int = 6) -> list[str]:
             break
     return list(dict.fromkeys(rows))
 
-
 def _short_optional_text(value: Any, limit: int = 120) -> str | None:
     if value is None or value == "":
         return None
     if isinstance(value, list):
-        return "unknown" if not value else _short_text(", ".join(str(item) for item in value), limit)
+        return (
+            "unknown"
+            if not value
+            else _short_text(", ".join(str(item) for item in value), limit)
+        )
     if isinstance(value, dict):
         return _short_text(json.dumps(value, ensure_ascii=False), limit)
     return _short_text(value, limit)
-
 
 def output_root(dataset_root: Path) -> Path:
     configured = os.getenv("GOOSEOMNI_ANNOTATION_ROOT")
@@ -70,7 +73,6 @@ def output_root(dataset_root: Path) -> Path:
     if resolved.name == "gooseomni" and resolved.parent.name == "data":
         return resolved.parents[1] / "annotations"
     return Path.cwd() / "annotations"
-
 
 def abs_time(segment: Segment, local_sec: float) -> float:
     return segment.aligned_start_sec + local_sec
@@ -121,7 +123,9 @@ def prepare_timed_payload(
     return payload
 
 
-def normalize_pov_event_payload(item: dict[str, Any], segment: Segment, pov: POVRef, index: int) -> dict[str, Any]:
+def normalize_pov_event_payload(
+    item: dict[str, Any], segment: Segment, pov: POVRef, index: int
+) -> dict[str, Any]:
     payload = prepare_timed_payload(
         item,
         segment,
@@ -129,14 +133,20 @@ def normalize_pov_event_payload(item: dict[str, Any], segment: Segment, pov: POV
         item_id=f"{segment.segment_id}_{pov.player_id}_event_{index:03d}",
         id_field="event_id",
     )
-    payload["actor"] = normalize_optional_player(payload.get("actor"), default=pov.player_id)
+    payload["actor"] = normalize_optional_player(
+        payload.get("actor"), default=pov.player_id
+    )
     payload["speaker"] = normalize_optional_player(payload.get("speaker"), default=None)
     payload.setdefault("utterance", None)
     payload.setdefault("claim_type", None)
     if not payload.get("location"):
         payload["location"] = "unknown"
-    payload["visible_players"] = normalize_player_list(payload.get("visible_players", []))
-    payload["mentioned_players"] = normalize_player_list(payload.get("mentioned_players", []))
+    payload["visible_players"] = normalize_player_list(
+        payload.get("visible_players", [])
+    )
+    payload["mentioned_players"] = normalize_player_list(
+        payload.get("mentioned_players", [])
+    )
     return payload
 
 
@@ -147,7 +157,13 @@ def normalize_optional_player(value: Any, default: str | None = None) -> str | N
     mapped = PLAYER_ALIASES.get(text, text)
     if mapped in VALID_PLAYER_SET:
         return mapped
-    return default if default in VALID_PLAYER_SET else "unknown" if default == "unknown" else None
+    return (
+        default
+        if default in VALID_PLAYER_SET
+        else "unknown"
+        if default == "unknown"
+        else None
+    )
 
 
 def normalize_player_list(values: Any) -> list[str]:
@@ -161,16 +177,23 @@ def normalize_player_list(values: Any) -> list[str]:
     return list(dict.fromkeys(normalized))
 
 
-def normalize_utterance_payload(item: dict[str, Any], segment: Segment, pov: POVRef, index: int) -> dict[str, Any]:
+def normalize_utterance_payload(
+    item: dict[str, Any], segment: Segment, pov: POVRef, index: int
+) -> dict[str, Any]:
     payload = dict(item)
     if "transcript" in payload and "text" not in payload:
         payload["text"] = payload["transcript"]
     if "text" in payload and "transcript" not in payload:
         payload["transcript"] = payload["text"]
-    payload["speaker"] = normalize_optional_player(payload.get("speaker"), default="unknown") or "unknown"
+    payload["speaker"] = (
+        normalize_optional_player(payload.get("speaker"), default="unknown")
+        or "unknown"
+    )
     payload.setdefault("speaker_confidence", payload.get("certainty", 0.0))
     payload["addressee"] = normalize_player_list(payload.get("addressee", []))
-    payload["mentioned_players"] = normalize_player_list(payload.get("mentioned_players", []))
+    payload["mentioned_players"] = normalize_player_list(
+        payload.get("mentioned_players", [])
+    )
     payload.setdefault("claims", [])
     payload.setdefault("possible_intents", [])
     payload.setdefault("is_direct_observation", False)
@@ -188,21 +211,34 @@ def normalize_utterance_payload(item: dict[str, Any], segment: Segment, pov: POV
             "claim_id",
             f"{normalized['utterance_id']}_claim_{claim_index:03d}",
         )
-        claim["speaker"] = normalize_optional_player(claim.get("speaker"), default=normalized.get("speaker", "unknown")) or "unknown"
+        claim["speaker"] = (
+            normalize_optional_player(
+                claim.get("speaker"), default=normalized.get("speaker", "unknown")
+            )
+            or "unknown"
+        )
         claim.setdefault("evidence", normalized.get("evidence", ""))
-        claim["mentioned_players"] = normalize_player_list(claim.get("mentioned_players", []))
-        claim["subject_players"] = normalize_player_list(claim.get("subject_players", []))
+        claim["mentioned_players"] = normalize_player_list(
+            claim.get("mentioned_players", [])
+        )
+        claim["subject_players"] = normalize_player_list(
+            claim.get("subject_players", [])
+        )
         claim["object_players"] = normalize_player_list(claim.get("object_players", []))
         claim["locations"] = _short_list(claim.get("locations", []), 6)
         claim["time_referred"] = _short_optional_text(claim.get("time_referred"), 80)
         claim["content"] = _short_text(claim.get("content"), 160)
         claim["claim_type"] = _short_text(claim.get("claim_type"), 80)
         claim["evidence"] = _short_text(claim.get("evidence"), 160)
-        claim["certainty"] = _clamp_certainty(claim.get("certainty"), normalized.get("certainty", 0.5))
+        claim["certainty"] = _clamp_certainty(
+            claim.get("certainty"), normalized.get("certainty", 0.5)
+        )
     return normalized
 
 
-def normalize_global_event_payload(item: dict[str, Any], segment: Segment, index: int) -> dict[str, Any]:
+def normalize_global_event_payload(
+    item: dict[str, Any], segment: Segment, index: int
+) -> dict[str, Any]:
     payload = dict(item)
     if "source_povs" in payload and "source_pov" not in payload:
         payload["source_pov"] = payload.pop("source_povs")
@@ -216,7 +252,9 @@ def normalize_global_event_payload(item: dict[str, Any], segment: Segment, index
         payload["source_pov"] = [payload["source_pov"]]
     payload["source_pov"] = normalize_player_list(payload.get("source_pov", []))
     payload["actors"] = normalize_player_list(payload.get("actors", []))
-    payload["involved_players"] = normalize_player_list(payload.get("involved_players", []))
+    payload["involved_players"] = normalize_player_list(
+        payload.get("involved_players", [])
+    )
     payload["visible_to"] = normalize_player_list(payload.get("visible_to", []))
     payload["heard_by"] = normalize_player_list(payload.get("heard_by", []))
     payload["not_visible_to"] = normalize_player_list(payload.get("not_visible_to", []))
@@ -228,8 +266,12 @@ def normalize_global_event_payload(item: dict[str, Any], segment: Segment, index
     payload.setdefault("needs_human_review", False)
     payload["description"] = _short_text(payload.get("description"), 160)
     payload["evidence"] = _short_text(payload.get("evidence"), 160)
-    payload["supporting_pov_event_ids"] = _short_list(payload.get("supporting_pov_event_ids", []), 6)
-    payload["supporting_utterance_ids"] = _short_list(payload.get("supporting_utterance_ids", []), 6)
+    payload["supporting_pov_event_ids"] = _short_list(
+        payload.get("supporting_pov_event_ids", []), 6
+    )
+    payload["supporting_utterance_ids"] = _short_list(
+        payload.get("supporting_utterance_ids", []), 6
+    )
     payload["related_claim_ids"] = _short_list(payload.get("related_claim_ids", []), 6)
     payload["certainty"] = _clamp_certainty(payload.get("certainty"), 0.5)
     payload.setdefault("conflict", False)
@@ -241,7 +283,9 @@ def normalize_global_event_payload(item: dict[str, Any], segment: Segment, index
     )
 
 
-def normalize_candidate_trial_payload(item: dict[str, Any], segment: Segment, index: int) -> dict[str, Any]:
+def normalize_candidate_trial_payload(
+    item: dict[str, Any], segment: Segment, index: int
+) -> dict[str, Any]:
     payload = dict(item)
     payload.update(
         {
@@ -282,17 +326,30 @@ def normalize_candidate_trial_payload(item: dict[str, Any], segment: Segment, in
         cutoff_float = float(cutoff)
     except (TypeError, ValueError):
         cutoff_float = segment.aligned_end_sec
-    if cutoff_float < segment.aligned_start_sec or cutoff_float > segment.aligned_end_sec:
+    if (
+        cutoff_float < segment.aligned_start_sec
+        or cutoff_float > segment.aligned_end_sec
+    ):
         cutoff_float = segment.aligned_end_sec
     payload["cutoff_abs_sec"] = cutoff_float
     payload["question"] = _short_text(payload.get("question"), 200)
     payload["answer"] = _short_text(payload.get("answer"), 200)
     payload["distractors"] = _short_list(payload.get("distractors", []), 4)
-    payload["available_information"] = _short_list(payload.get("available_information", []), 6)
-    payload["hidden_information"] = _short_list(payload.get("hidden_information", []), 6)
-    payload["supporting_global_event_ids"] = _short_list(payload.get("supporting_global_event_ids", []), 6)
-    payload["supporting_information_state_ids"] = _short_list(payload.get("supporting_information_state_ids", []), 6)
-    payload["expected_answer_basis"] = _short_text(payload.get("expected_answer_basis"), 160)
+    payload["available_information"] = _short_list(
+        payload.get("available_information", []), 6
+    )
+    payload["hidden_information"] = _short_list(
+        payload.get("hidden_information", []), 6
+    )
+    payload["supporting_global_event_ids"] = _short_list(
+        payload.get("supporting_global_event_ids", []), 6
+    )
+    payload["supporting_information_state_ids"] = _short_list(
+        payload.get("supporting_information_state_ids", []), 6
+    )
+    payload["expected_answer_basis"] = _short_text(
+        payload.get("expected_answer_basis"), 160
+    )
     if isinstance(payload.get("source_pov"), str):
         payload["source_pov"] = [payload["source_pov"]]
     if "source_povs" in payload and "source_pov" not in payload:
@@ -302,7 +359,12 @@ def normalize_candidate_trial_payload(item: dict[str, Any], segment: Segment, in
         payload["source_pov"] = [pov.player_id for pov in segment.povs]
         payload["needs_human_review"] = True
     if not payload.get("evidence"):
-        basis = payload.get("expected_answer_basis") or payload.get("answer") or payload.get("question") or "unknown"
+        basis = (
+            payload.get("expected_answer_basis")
+            or payload.get("answer")
+            or payload.get("question")
+            or "unknown"
+        )
         payload["evidence"] = str(basis)
         payload["needs_human_review"] = True
     payload["evidence"] = _short_text(payload.get("evidence"), 160)
@@ -311,12 +373,16 @@ def normalize_candidate_trial_payload(item: dict[str, Any], segment: Segment, in
         0.5 if payload.get("needs_human_review") else 0.7,
     )
     if payload.get("risk_of_perspective_leakage") not in {"low", "medium", "high"}:
-        payload["risk_of_perspective_leakage"] = "medium" if payload.get("needs_human_review") else "low"
+        payload["risk_of_perspective_leakage"] = (
+            "medium" if payload.get("needs_human_review") else "low"
+        )
     payload.setdefault("needs_human_review", False)
     return payload
 
 
-def normalize_phase_event_payload(item: dict[str, Any], segment: Segment, index: int) -> dict[str, Any]:
+def normalize_phase_event_payload(
+    item: dict[str, Any], segment: Segment, index: int
+) -> dict[str, Any]:
     payload = dict(item)
     payload.setdefault("target_player", "global")
     payload.setdefault("visible_to_all", False)
@@ -326,7 +392,16 @@ def normalize_phase_event_payload(item: dict[str, Any], segment: Segment, index:
         payload["evidence_povs"] = [payload["evidence_povs"]]
     payload.setdefault("evidence_povs", payload.get("source_pov", []))
     payload["evidence_povs"] = normalize_player_list(payload.get("evidence_povs", []))
-    valid_phase_types = {"discussion", "voting", "vote_result", "exile", "action", "body_report", "meeting_start", "unknown"}
+    valid_phase_types = {
+        "discussion",
+        "voting",
+        "vote_result",
+        "exile",
+        "action",
+        "body_report",
+        "meeting_start",
+        "unknown",
+    }
     if payload.get("phase_type") not in valid_phase_types:
         payload["phase_type"] = "unknown"
         payload["needs_human_review"] = True
@@ -338,7 +413,9 @@ def normalize_phase_event_payload(item: dict[str, Any], segment: Segment, index:
     )
 
 
-def normalize_cutoff_payload(item: dict[str, Any], segment: Segment, target_player: str) -> dict[str, Any]:
+def normalize_cutoff_payload(
+    item: dict[str, Any], segment: Segment, target_player: str
+) -> dict[str, Any]:
     payload = dict(item)
     payload.update(
         {
@@ -352,10 +429,15 @@ def normalize_cutoff_payload(item: dict[str, Any], segment: Segment, target_play
     return payload
 
 
-def normalize_model_time_window(segment: Segment, start_sec: float, end_sec: float) -> tuple[float, float]:
+def normalize_model_time_window(
+    segment: Segment, start_sec: float, end_sec: float
+) -> tuple[float, float]:
     if 0 <= start_sec <= segment.duration_sec and 0 <= end_sec <= segment.duration_sec:
         local_start, local_end = start_sec, end_sec
-    elif segment.aligned_start_sec <= start_sec <= segment.aligned_end_sec and segment.aligned_start_sec <= end_sec <= segment.aligned_end_sec:
+    elif (
+        segment.aligned_start_sec <= start_sec <= segment.aligned_end_sec
+        and segment.aligned_start_sec <= end_sec <= segment.aligned_end_sec
+    ):
         local_start = start_sec - segment.aligned_start_sec
         local_end = end_sec - segment.aligned_start_sec
     else:
@@ -367,7 +449,9 @@ def normalize_model_time_window(segment: Segment, start_sec: float, end_sec: flo
     return local_start, local_end
 
 
-def validate_local_window(segment: Segment, local_start_sec: float, local_end_sec: float) -> None:
+def validate_local_window(
+    segment: Segment, local_start_sec: float, local_end_sec: float
+) -> None:
     if local_start_sec < 0 or local_end_sec > segment.duration_sec:
         raise ValueError(
             f"local time window [{local_start_sec}, {local_end_sec}] exceeds "
@@ -407,10 +491,10 @@ def save_error(
             target_player=target_player,
             video_file=pov.video_file if pov else None,
             raw_response=raw_response,
-            error_message="".join(traceback.format_exception_only(type(error), error)).strip(),
+            error_message="".join(
+                traceback.format_exception_only(type(error), error)
+            ).strip(),
             prompt=prompt,
         ),
     )
     return path
-
-

@@ -3,8 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from .schema import POVRef, Segment, VALID_PLAYERS
-
+from .schema import VALID_PLAYERS, POVRef, Segment
 
 COMMON_RULES = """共同标注规则：
 - 这是严格 6-POV 对齐数据；同一 segment 内所有 POV 的 local time 0 对应同一个 aligned_start_sec。
@@ -338,7 +337,8 @@ def information_state_prompt(
             "visible_or_public_global_events": global_events,
             "target_pov_events": pov_events,
             "target_heard_utterances": utterances,
-            "hidden_global_event_refs_for_unknowns_only": hidden_global_event_refs or [],
+            "hidden_global_event_refs_for_unknowns_only": hidden_global_event_refs
+            or [],
             "projection_rules": projection_rules or [],
         },
         ensure_ascii=False,

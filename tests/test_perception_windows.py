@@ -31,10 +31,7 @@ EPISODES = [
 
 def test_v14_phase_windows_are_exact_and_never_cross_boundaries() -> None:
     rows = phase_windows(EPISODES, (2140, 2230), (), 30)
-    assert [
-        (row["start_sec"], row["end_sec"], row["phase_type"])
-        for row in rows
-    ] == [
+    assert [(row["start_sec"], row["end_sec"], row["phase_type"]) for row in rows] == [
         (2140, 2162.5, "meeting"),
         (2162.5, 2192.5, "gameplay"),
         (2192.5, 2202.5, "gameplay"),

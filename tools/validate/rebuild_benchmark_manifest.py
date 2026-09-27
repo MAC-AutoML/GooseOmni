@@ -8,7 +8,6 @@ import hashlib
 import json
 from pathlib import Path
 
-
 LINE_COUNT_PATHS = (
     "public/leaderboard_core/trials.jsonl",
     "private/leaderboard_core/hidden_gold.jsonl",
@@ -47,7 +46,11 @@ def public_leak_hits(root: Path) -> list[str]:
 
 
 def build_manifest(root: Path) -> dict[str, object]:
-    files = [path for path in sorted(root.rglob("*")) if path.is_file() and path.name != "manifest.json"]
+    files = [
+        path
+        for path in sorted(root.rglob("*"))
+        if path.is_file() and path.name != "manifest.json"
+    ]
     records = [
         {
             "path": path.relative_to(root).as_posix(),
@@ -78,7 +81,9 @@ def build_manifest(root: Path) -> dict[str, object]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("root", type=Path, nargs="?", default=Path("benchmark/gooseomni_v1"))
+    parser.add_argument(
+        "root", type=Path, nargs="?", default=Path("benchmark/gooseomni_v1")
+    )
     args = parser.parse_args()
     manifest = build_manifest(args.root)
     (args.root / "manifest.json").write_text(

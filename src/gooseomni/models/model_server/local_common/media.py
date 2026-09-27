@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 
 def ensure_parent(path: str | Path) -> None:
@@ -33,7 +32,11 @@ def extract_audio(video_path: str | Path, output_audio_path: str | Path) -> bool
         return False
 
 
-def extract_frame(video_path: str | Path, output_image_path: str | Path, timestamp: Optional[float] = None) -> bool:
+def extract_frame(
+    video_path: str | Path,
+    output_image_path: str | Path,
+    timestamp: float | None = None,
+) -> bool:
     ensure_parent(output_image_path)
     if timestamp is None:
         timestamp = _get_middle_timestamp(video_path)

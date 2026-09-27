@@ -1,27 +1,13 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import collections
 import json
 import shutil
-import sys
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 from gooseomni.benchmark.decrypto_diagnostics import PLAYERS, write_json, write_jsonl
-
 
 PROBE_FILES = {
     "A_pre_reveal_belief": "probes_A_pre_reveal.jsonl",
@@ -32,7 +18,9 @@ PROBE_FILES = {
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Repair pass1 Decrypto diagnostics into a cleaner pass2_reviewed directory.")
+    parser = argparse.ArgumentParser(
+        description="Repair pass1 Decrypto diagnostics into a cleaner pass2_reviewed directory."
+    )
     parser.add_argument("--input-pass-root", type=Path, required=True)
     parser.add_argument("--output-pass-root", type=Path, required=True)
     parser.add_argument("--drop-no-target-evidence", action="store_true", default=True)
@@ -43,13 +31,30 @@ def parse_args() -> argparse.Namespace:
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
-def snapshot_for(snapshots: list[dict[str, Any]], player: str, cutoff: float) -> dict[str, Any]:
-    candidates = [row for row in snapshots if row.get("target_player") == player and float(row.get("cutoff_abs_sec", -1)) <= cutoff + 1e-6]
+def snapshot_for(
+    snapshots: list[dict[str, Any]], player: str, cutoff: float
+) -> dict[str, Any]:
+    candidates = [
+        row
+        for row in snapshots
+        if row.get("target_player") == player
+        and float(row.get("cutoff_abs_sec", -1)) <= cutoff + 1e-6
+    ]
     if not candidates:
-        return {"public_history": [], "private_observations": [], "heard_claims": [], "inferred_beliefs": [], "available_evidence_ids": []}
+        return {
+            "public_history": [],
+            "private_observations": [],
+            "heard_claims": [],
+            "inferred_beliefs": [],
+            "available_evidence_ids": [],
+        }
     return max(candidates, key=lambda row: float(row.get("cutoff_abs_sec", 0.0)))
 
 
@@ -63,7 +68,9 @@ def compact_speaker_context(snapshot: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def compact_listener_public_model(snapshot: dict[str, Any], related_claim_ids: list[str]) -> dict[str, Any]:
+def compact_listener_public_model(
+    snapshot: dict[str, Any], related_claim_ids: list[str]
+) -> dict[str, Any]:
     heard_public_claims = [
         claim
         for claim in snapshot.get("heard_claims", [])
@@ -103,11 +110,15 @@ def public_query_variable(group: dict[str, Any]) -> dict[str, Any]:
             "the recent situation? Do not assume any oracle-hidden event occurred."
         )
     return {
-        "query_type": group.get("query_variable", {}).get("type", "hidden_event_awareness"),
+        "query_type": group.get("query_variable", {}).get(
+            "type", "hidden_event_awareness"
+        ),
         "target_player": group["target_player"],
         "cutoff_abs_sec": group["cutoff_abs_sec"],
         "related_claim_ids": related_claims,
-        "anchor_event_redacted_from_A_prompt": bool(group.get("hidden_event_ids_for_target")),
+        "anchor_event_redacted_from_A_prompt": bool(
+            group.get("hidden_event_ids_for_target")
+        ),
         "public_question": public_question,
     }
 
@@ -117,7 +128,11 @@ def repair_a_prompt(probe: dict[str, Any], group: dict[str, Any]) -> dict[str, A
     original = probe.get("prompt", "")
     query_json = json.dumps(public_query_variable(group), ensure_ascii=False, indent=2)
     if "TARGET_AVAILABLE_CONTEXT_JSON:" in original:
-        context = original.split("TARGET_AVAILABLE_CONTEXT_JSON:", 1)[1].split("QUESTION:", 1)[0].strip()
+        context = (
+            original.split("TARGET_AVAILABLE_CONTEXT_JSON:", 1)[1]
+            .split("QUESTION:", 1)[0]
+            .strip()
+        )
     else:
         context = "{}"
     repaired["prompt"] = (
@@ -131,7 +146,10 @@ def repair_a_prompt(probe: dict[str, Any], group: dict[str, Any]) -> dict[str, A
         + "State what the player knows, does not know, or can only treat as uncertain. "
         + "Return strict JSON matching the schema."
     )
-    repaired["repair_notes"] = ["added leakage-safe public query variable", "kept oracle-hidden event descriptions out of A prompt"]
+    repaired["repair_notes"] = [
+        "added leakage-safe public query variable",
+        "kept oracle-hidden event descriptions out of A prompt",
+    ]
     return repaired
 
 
@@ -142,12 +160,20 @@ def repair_d_prompt(
     snapshots: list[dict[str, Any]],
 ) -> dict[str, Any]:
     repaired = dict(probe)
-    related_claims = [claims_by_id[cid] for cid in group.get("related_claim_ids", []) if cid in claims_by_id]
-    speaker = related_claims[0].get("speaker", "unknown") if related_claims else "unknown"
+    related_claims = [
+        claims_by_id[cid]
+        for cid in group.get("related_claim_ids", [])
+        if cid in claims_by_id
+    ]
+    speaker = (
+        related_claims[0].get("speaker", "unknown") if related_claims else "unknown"
+    )
     if speaker not in PLAYERS:
         speaker = "unknown"
     cutoff = float(group["cutoff_abs_sec"])
-    speaker_snapshot = snapshot_for(snapshots, speaker, cutoff) if speaker in PLAYERS else {}
+    speaker_snapshot = (
+        snapshot_for(snapshots, speaker, cutoff) if speaker in PLAYERS else {}
+    )
     listener_snapshot = snapshot_for(snapshots, group["target_player"], cutoff)
     repaired["prompt"] = (
         prompt_header(group)
@@ -156,21 +182,34 @@ def repair_d_prompt(
         + "\nSPEAKER_AVAILABLE_CONTEXT_JSON:\n"
         + json.dumps(compact_speaker_context(speaker_snapshot), ensure_ascii=False)
         + "\nSPEAKER_MODEL_OF_LISTENER_PUBLIC_HISTORY_JSON:\n"
-        + json.dumps(compact_listener_public_model(listener_snapshot, group.get("related_claim_ids", [])), ensure_ascii=False)
+        + json.dumps(
+            compact_listener_public_model(
+                listener_snapshot, group.get("related_claim_ids", [])
+            ),
+            ensure_ascii=False,
+        )
         + f"\nQUESTION: From speaker {speaker}'s perspective after making the strategic claim, predict how listener "
         + f"{group['target_player']} would interpret the claim and how their trust/action may change. "
         + "Do not use listener private observations unless they are present in the speaker-safe public model. "
         + "Return strict JSON matching the schema."
     )
-    repaired["repair_notes"] = ["replaced listener private context with speaker-safe listener public model"]
+    repaired["repair_notes"] = [
+        "replaced listener private context with speaker-safe listener public model"
+    ]
     return repaired
 
 
 def should_drop_group(group: dict[str, Any]) -> tuple[bool, list[str]]:
     reasons: list[str] = []
-    if not group.get("available_evidence_ids_for_target") and not group.get("related_claim_ids"):
+    if not group.get("available_evidence_ids_for_target") and not group.get(
+        "related_claim_ids"
+    ):
         reasons.append("no_target_available_evidence_or_related_claim")
-    if group.get("template") == "hidden_event_awareness" and not group.get("available_evidence_ids_for_target") and not group.get("related_claim_ids"):
+    if (
+        group.get("template") == "hidden_event_awareness"
+        and not group.get("available_evidence_ids_for_target")
+        and not group.get("related_claim_ids")
+    ):
         reasons.append("weak_hidden_event_awareness_without_partial_information")
     return bool(reasons), reasons
 
@@ -184,7 +223,9 @@ def main() -> None:
             raise SystemExit(f"output exists: {dst}")
         shutil.rmtree(dst)
     (dst / "annotations").mkdir(parents=True)
-    shutil.copytree(src / "annotations" / "oracle_ledger", dst / "annotations" / "oracle_ledger")
+    shutil.copytree(
+        src / "annotations" / "oracle_ledger", dst / "annotations" / "oracle_ledger"
+    )
     shutil.copytree(src / "docs", dst / "docs", dirs_exist_ok=True)
     shutil.copytree(src / "scripts", dst / "scripts", dirs_exist_ok=True)
     shutil.copytree(src / "slurm", dst / "slurm", dirs_exist_ok=True)
@@ -200,7 +241,9 @@ def main() -> None:
     hidden_gold = read_jsonl(src_diag / "hidden_gold.jsonl")
     quality = read_jsonl(src_diag / "diagnostic_quality.jsonl")
     claims = read_jsonl(src / "annotations" / "oracle_ledger" / "claims.jsonl")
-    snapshots = read_jsonl(src / "annotations" / "oracle_ledger" / "belief_memory_snapshots.jsonl")
+    snapshots = read_jsonl(
+        src / "annotations" / "oracle_ledger" / "belief_memory_snapshots.jsonl"
+    )
     claims_by_id = {row["claim_id"]: row for row in claims}
 
     probes: dict[str, list[dict[str, Any]]] = {}
@@ -230,14 +273,26 @@ def main() -> None:
             group_id = probe["probe_group_id"]
             if group_id not in kept_ids:
                 continue
-            group = next(row for row in kept_groups if row["probe_group_id"] == group_id)
+            group = next(
+                row for row in kept_groups if row["probe_group_id"] == group_id
+            )
             repaired_probe = dict(probe)
             if probe_type == "A_pre_reveal_belief":
                 repaired_probe = repair_a_prompt(probe, group)
-                repair_actions.append({"probe_id": probe["probe_id"], "action": "A_prompt_add_public_query_variable"})
+                repair_actions.append(
+                    {
+                        "probe_id": probe["probe_id"],
+                        "action": "A_prompt_add_public_query_variable",
+                    }
+                )
             elif probe_type == "D_perspective_taking_prediction":
                 repaired_probe = repair_d_prompt(probe, group, claims_by_id, snapshots)
-                repair_actions.append({"probe_id": probe["probe_id"], "action": "D_prompt_speaker_safe_context"})
+                repair_actions.append(
+                    {
+                        "probe_id": probe["probe_id"],
+                        "action": "D_prompt_speaker_safe_context",
+                    }
+                )
             repaired_by_type[probe_type].append(repaired_probe)
 
     kept_hidden = [row for row in hidden_gold if row["probe_group_id"] in kept_ids]
@@ -246,7 +301,9 @@ def main() -> None:
         if row["probe_group_id"] in kept_ids:
             repaired = dict(row)
             repaired["recommended_gold_source"] = "qwen_weak"
-            repaired["review_note"] = "codex pass2 repaired prompts and filtered no-evidence weak probes; still requires qwen_checked or human review before final gold"
+            repaired["review_note"] = (
+                "codex pass2 repaired prompts and filtered no-evidence weak probes; still requires qwen_checked or human review before final gold"
+            )
             kept_quality.append(repaired)
 
     write_jsonl(dst_diag / "probe_groups.jsonl", kept_groups)
@@ -269,7 +326,11 @@ def main() -> None:
         "C_after": len(repaired_by_type["C_other_agent_false_belief"]),
         "D_after": len(repaired_by_type["D_perspective_taking_prediction"]),
         "repair_actions": len(repair_actions),
-        "drop_reasons": dict(collections.Counter(reason for row in dropped_groups for reason in row["drop_reasons"])),
+        "drop_reasons": dict(
+            collections.Counter(
+                reason for row in dropped_groups for reason in row["drop_reasons"]
+            )
+        ),
         "status": "qwen_weak_pass2_repaired_not_final_gold",
     }
     write_json(review_dir / "pass2_repair_summary.json", summary)

@@ -1,30 +1,19 @@
-#!/usr/bin/env python3
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import csv
 import json
 import math
 import re
-import sys
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+
+#!/usr/bin/env python3
+
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 
 @dataclass(frozen=True)
@@ -96,7 +85,9 @@ def infer_result_sets(result_dir: Path) -> list[ResultSet]:
         rows = data.get("results", []) if isinstance(data, dict) else []
         if not rows:
             continue
-        model = str(data.get("model") or path.name.split("_level1")[0].replace("results_", ""))
+        model = str(
+            data.get("model") or path.name.split("_level1")[0].replace("results_", "")
+        )
         setting = str(data.get("modality") or "unknown")
         task_tag = task_tag_from_name(path.name)
         if "asr_tag" in data:
@@ -120,7 +111,15 @@ def infer_result_sets(result_dir: Path) -> list[ResultSet]:
         if signature in seen:
             continue
         seen.add(signature)
-        sets.append(ResultSet(path=path, model=model, setting=setting, include_asr=include_asr, rows=scored))
+        sets.append(
+            ResultSet(
+                path=path,
+                model=model,
+                setting=setting,
+                include_asr=include_asr,
+                rows=scored,
+            )
+        )
     return sets
 
 
@@ -136,19 +135,33 @@ def task_tag_from_name(name: str) -> str:
     return ""
 
 
-def split_accuracy(result: ResultSet, dataset_by_id: dict[int, dict]) -> dict[str, tuple[int, int, float]]:
+def split_accuracy(
+    result: ResultSet, dataset_by_id: dict[int, dict]
+) -> dict[str, tuple[int, int, float]]:
     buckets: dict[str, list[int]] = defaultdict(lambda: [0, 0])
     for sample_id, row in result.rows.items():
-        split = dataset_by_id.get(sample_id, {}).get("metadata", {}).get("consistency", "unknown")
+        split = (
+            dataset_by_id.get(sample_id, {})
+            .get("metadata", {})
+            .get("consistency", "unknown")
+        )
         bucket = buckets[str(split or "unknown")]
         bucket[1] += 1
         if bool(row.get("is_correct")):
             bucket[0] += 1
-    buckets["all"] = [sum(v[0] for v in buckets.values()), sum(v[1] for v in buckets.values())]
-    return {k: (v[0], v[1], 100.0 * v[0] / v[1] if v[1] else 0.0) for k, v in buckets.items()}
+    buckets["all"] = [
+        sum(v[0] for v in buckets.values()),
+        sum(v[1] for v in buckets.values()),
+    ]
+    return {
+        k: (v[0], v[1], 100.0 * v[0] / v[1] if v[1] else 0.0)
+        for k, v in buckets.items()
+    }
 
 
-def content_speaker_metrics(result: ResultSet, dataset_by_id: dict[int, dict]) -> dict[str, float | int]:
+def content_speaker_metrics(
+    result: ResultSet, dataset_by_id: dict[int, dict]
+) -> dict[str, float | int]:
     total = exact = content = speaker = wrong_speaker_content = parsed = 0
     for sample_id, row in result.rows.items():
         sample = dataset_by_id.get(sample_id)
@@ -157,9 +170,16 @@ def content_speaker_metrics(result: ResultSet, dataset_by_id: dict[int, dict]) -
         options = option_map(row.get("options") or sample.get("options") or [])
         correct_choice = normalize_choice(sample.get("correct_answer"))
         pred_choice = normalize_choice(row.get("prediction"))
-        if not correct_choice or not pred_choice or correct_choice not in options or pred_choice not in options:
+        if (
+            not correct_choice
+            or not pred_choice
+            or correct_choice not in options
+            or pred_choice not in options
+        ):
             continue
-        correct_speaker, correct_content, ok1 = parse_speaker_content(options[correct_choice])
+        correct_speaker, correct_content, ok1 = parse_speaker_content(
+            options[correct_choice]
+        )
         pred_speaker, pred_content, ok2 = parse_speaker_content(options[pred_choice])
         total += 1
         exact += int(pred_choice == correct_choice)
@@ -206,7 +226,9 @@ def write_csv(path: Path, rows: list[dict]) -> None:
         writer.writerows(rows)
 
 
-def render_markdown(split_rows: list[dict], metrics_rows: list[dict], pair_rows: list[dict]) -> str:
+def render_markdown(
+    split_rows: list[dict], metrics_rows: list[dict], pair_rows: list[dict]
+) -> str:
     lines = [
         "# Level 1 Modality Ablation Analysis",
         "",
@@ -214,7 +236,9 @@ def render_markdown(split_rows: list[dict], metrics_rows: list[dict], pair_rows:
         "",
     ]
     lines += ["## Consistent/Inconsistent Split", ""]
-    lines += ["| model | setting | all | consistent | inconsistent | gap cons-incons | n |"]
+    lines += [
+        "| model | setting | all | consistent | inconsistent | gap cons-incons | n |"
+    ]
     lines += ["|---|---:|---:|---:|---:|---:|---:|"]
     for row in split_rows:
         lines.append(
@@ -223,7 +247,9 @@ def render_markdown(split_rows: list[dict], metrics_rows: list[dict], pair_rows:
             f"{row['gap_cons_minus_incons']:.2f} | {row['total']} |"
         )
     lines += ["", "## Content vs Speaker Decomposition", ""]
-    lines += ["| model | setting | exact | content | speaker | wrong-speaker/content | parsed |"]
+    lines += [
+        "| model | setting | exact | content | speaker | wrong-speaker/content | parsed |"
+    ]
     lines += ["|---|---:|---:|---:|---:|---:|---:|"]
     for row in metrics_rows:
         lines.append(
@@ -260,18 +286,22 @@ def main() -> None:
         all_row = splits.get("all", (0, 0, 0.0))
         cons = splits.get("consistent", (0, 0, 0.0))
         incons = splits.get("inconsistent", (0, 0, 0.0))
-        split_rows.append({
-            "model": result.model,
-            "setting": result.setting,
-            "all_acc": all_row[2],
-            "consistent_acc": cons[2],
-            "inconsistent_acc": incons[2],
-            "gap_cons_minus_incons": cons[2] - incons[2],
-            "total": all_row[1],
-            "path": str(result.path.relative_to(ROOT)),
-        })
+        split_rows.append(
+            {
+                "model": result.model,
+                "setting": result.setting,
+                "all_acc": all_row[2],
+                "consistent_acc": cons[2],
+                "inconsistent_acc": incons[2],
+                "gap_cons_minus_incons": cons[2] - incons[2],
+                "total": all_row[1],
+                "path": str(result.path.relative_to(ROOT)),
+            }
+        )
         metrics = content_speaker_metrics(result, dataset_by_id)
-        metrics_rows.append({"model": result.model, "setting": result.setting, **metrics})
+        metrics_rows.append(
+            {"model": result.model, "setting": result.setting, **metrics}
+        )
 
     pair_rows = []
     by_model: dict[str, list[ResultSet]] = defaultdict(list)
@@ -283,14 +313,16 @@ def main() -> None:
                 if len(set(left.rows) & set(right.rows)) < 100:
                     continue
                 only_a, only_b, p_value = mcnemar(left, right)
-                pair_rows.append({
-                    "model": model,
-                    "setting_a": left.setting,
-                    "setting_b": right.setting,
-                    "only_a": only_a,
-                    "only_b": only_b,
-                    "p_value": p_value,
-                })
+                pair_rows.append(
+                    {
+                        "model": model,
+                        "setting_a": left.setting,
+                        "setting_b": right.setting,
+                        "only_a": only_a,
+                        "only_b": only_b,
+                        "p_value": p_value,
+                    }
+                )
 
     out_dir = ROOT / args.output_dir
     write_csv(out_dir / "level1_split.csv", split_rows)

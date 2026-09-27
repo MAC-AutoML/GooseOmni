@@ -21,9 +21,7 @@ def _frame_packs(run_root: Path, rows: list[dict[str, Any]]) -> list[str]:
     return sorted(set(paths))
 
 
-def _review_queue(
-    run_root: Path, groups: dict[str, list[dict[str, Any]]]
-) -> Path:
+def _review_queue(run_root: Path, groups: dict[str, list[dict[str, Any]]]) -> Path:
     queue = run_root / "local_codex/review_queue.jsonl"
     write_jsonl(
         queue,
@@ -82,7 +80,9 @@ def codex_review_stage(context: Any) -> dict[str, Any]:
     if len(decision_ids) != len(set(decision_ids)):
         raise ValueError("Codex decisions contain duplicate probe group IDs")
     if set(decision_ids) != set(groups):
-        raise ValueError("Codex decisions must cover exactly the candidate probe groups")
+        raise ValueError(
+            "Codex decisions must cover exactly the candidate probe groups"
+        )
     from .stages import validate_judgement
 
     validated = []
@@ -114,9 +114,7 @@ def codex_review_stage(context: Any) -> dict[str, Any]:
                 ),
             }
         )
-    accepted = [
-        row for row in validated if row.get("decision") in {"accept", "repair"}
-    ]
+    accepted = [row for row in validated if row.get("decision") in {"accept", "repair"}]
     rejected = [row for row in validated if row not in accepted]
     write_jsonl(context.run_root / "review_decisions.jsonl", validated)
     write_jsonl(context.run_root / "quarantine/rejected_trials.jsonl", rejected)

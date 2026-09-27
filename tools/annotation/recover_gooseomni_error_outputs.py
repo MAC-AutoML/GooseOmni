@@ -1,9 +1,13 @@
+# ruff: noqa: E402
 from __future__ import annotations
+
 import sys
 from pathlib import Path as _Path
 
 _REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
+    _parent
+    for _parent in _Path(__file__).resolve().parents
+    if (_parent / "pyproject.toml").exists()
 )
 for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
     if _path not in sys.path:
@@ -12,7 +16,6 @@ for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
 
 import argparse
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -20,9 +23,6 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from tools.annotation.run_belief_state_annotation import _normalize_belief_payload
-from tools.annotation.run_information_state import _normalize_information_payload
-from tools.annotation.run_memory_state_update import _normalize_memory_payload
 from gooseomni.benchmark.io import load_segments_jsonl, write_json, write_jsonl
 from gooseomni.benchmark.pipeline import (
     annotation_path,
@@ -47,13 +47,22 @@ from gooseomni.benchmark.schema import (
     Utterance,
     UtteranceAnnotation,
 )
+from tools.annotation.run_belief_state_annotation import _normalize_belief_payload
+from tools.annotation.run_information_state import _normalize_information_payload
+from tools.annotation.run_memory_state_update import _normalize_memory_payload
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Recover usable annotations from saved Omni Goose error raw responses.")
+    parser = argparse.ArgumentParser(
+        description="Recover usable annotations from saved Omni Goose error raw responses."
+    )
     parser.add_argument("--dataset-root", default="data/gooseomni", type=Path)
     parser.add_argument("--segments-jsonl", default=None, type=Path)
-    parser.add_argument("--annotation-root", default=Path("runs/gooseomni_oracle_pass1/annotations"), type=Path)
+    parser.add_argument(
+        "--annotation-root",
+        default=Path("runs/gooseomni_oracle_pass1/annotations"),
+        type=Path,
+    )
     parser.add_argument("--stage", default=None)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
@@ -78,7 +87,13 @@ def _parse_object(raw: str) -> dict[str, Any] | None:
         return parse_partial_json_object(raw)
 
 
-def _append_candidate_trials(path: Path, trials: list[CandidateTrial], segment_id: str, overwrite: bool, dry_run: bool) -> None:
+def _append_candidate_trials(
+    path: Path,
+    trials: list[CandidateTrial],
+    segment_id: str,
+    overwrite: bool,
+    dry_run: bool,
+) -> None:
     existing_rows: list[dict[str, Any]] = []
     if path.exists() and not overwrite:
         for line in path.read_text(encoding="utf-8").splitlines():
@@ -110,7 +125,9 @@ def _candidate_trials_exist(path: Path, segment_id: str) -> bool:
     return False
 
 
-def recover_one(error_path: Path, args: argparse.Namespace, segments: dict[str, Any]) -> tuple[bool, str]:
+def recover_one(
+    error_path: Path, args: argparse.Namespace, segments: dict[str, Any]
+) -> tuple[bool, str]:
     record = json.loads(error_path.read_text(encoding="utf-8"))
     stage = record.get("stage")
     segment_id = record.get("segment_id")
@@ -125,10 +142,20 @@ def recover_one(error_path: Path, args: argparse.Namespace, segments: dict[str, 
 
     if stage == "phase_events":
         items = _parse_array(raw, max_items=5)
-        events = [PhaseEvent.model_validate(normalize_phase_event_payload(item, segment, index)) for index, item in enumerate(items, start=1)]
+        events = [
+            PhaseEvent.model_validate(
+                normalize_phase_event_payload(item, segment, index)
+            )
+            for index, item in enumerate(items, start=1)
+        ]
         if not events:
             return False, "no_recovered_items"
-        output_path = annotation_path(args.dataset_root, "phase_events", segment, annotation_root=args.annotation_root)
+        output_path = annotation_path(
+            args.dataset_root,
+            "phase_events",
+            segment,
+            annotation_root=args.annotation_root,
+        )
         if output_path.exists() and not args.overwrite:
             return False, "output_exists"
         annotation = PhaseEventAnnotation(
@@ -149,10 +176,17 @@ def recover_one(error_path: Path, args: argparse.Namespace, segments: dict[str, 
         if pov is None:
             return False, "missing_pov"
         items = _parse_array(raw, max_items=5)
-        utterances = [Utterance.model_validate(normalize_utterance_payload(item, segment, pov, index)) for index, item in enumerate(items, start=1)]
+        utterances = [
+            Utterance.model_validate(
+                normalize_utterance_payload(item, segment, pov, index)
+            )
+            for index, item in enumerate(items, start=1)
+        ]
         if not utterances:
             return False, "no_recovered_items"
-        output_path = annotation_path(args.dataset_root, "utterances", segment, player_id, args.annotation_root)
+        output_path = annotation_path(
+            args.dataset_root, "utterances", segment, player_id, args.annotation_root
+        )
         if output_path.exists() and not args.overwrite:
             return False, "output_exists"
         annotation = UtteranceAnnotation(
@@ -171,10 +205,20 @@ def recover_one(error_path: Path, args: argparse.Namespace, segments: dict[str, 
 
     if stage == "global_events":
         items = _parse_array(raw, max_items=3)
-        events = [GlobalEvent.model_validate(normalize_global_event_payload(item, segment, index)) for index, item in enumerate(items, start=1)]
+        events = [
+            GlobalEvent.model_validate(
+                normalize_global_event_payload(item, segment, index)
+            )
+            for index, item in enumerate(items, start=1)
+        ]
         if not events:
             return False, "no_recovered_items"
-        output_path = annotation_path(args.dataset_root, "global_events", segment, annotation_root=args.annotation_root)
+        output_path = annotation_path(
+            args.dataset_root,
+            "global_events",
+            segment,
+            annotation_root=args.annotation_root,
+        )
         if output_path.exists() and not args.overwrite:
             return False, "output_exists"
         annotation = GlobalEventAnnotation(
@@ -194,8 +238,12 @@ def recover_one(error_path: Path, args: argparse.Namespace, segments: dict[str, 
         payload = _parse_object(raw)
         if payload is None:
             return False, "no_recovered_object"
-        state = MemoryState.model_validate(_normalize_memory_payload(payload, segment, target))
-        output_path = annotation_path(args.dataset_root, "memory_states", segment, target, args.annotation_root)
+        state = MemoryState.model_validate(
+            _normalize_memory_payload(payload, segment, target)
+        )
+        output_path = annotation_path(
+            args.dataset_root, "memory_states", segment, target, args.annotation_root
+        )
         if output_path.exists() and not args.overwrite:
             return False, "output_exists"
         if not args.dry_run:
@@ -207,8 +255,16 @@ def recover_one(error_path: Path, args: argparse.Namespace, segments: dict[str, 
         payload = _parse_object(raw)
         if payload is None:
             return False, "no_recovered_object"
-        state = InformationState.model_validate(_normalize_information_payload(payload, segment, target))
-        output_path = annotation_path(args.dataset_root, "information_states", segment, target, args.annotation_root)
+        state = InformationState.model_validate(
+            _normalize_information_payload(payload, segment, target)
+        )
+        output_path = annotation_path(
+            args.dataset_root,
+            "information_states",
+            segment,
+            target,
+            args.annotation_root,
+        )
         if output_path.exists() and not args.overwrite:
             return False, "output_exists"
         if not args.dry_run:
@@ -220,10 +276,25 @@ def recover_one(error_path: Path, args: argparse.Namespace, segments: dict[str, 
         payload = _parse_object(raw)
         if payload is None:
             return False, "no_recovered_object"
-        global_path = annotation_path(args.dataset_root, "global_events", segment, annotation_root=args.annotation_root)
-        global_payload = json.loads(global_path.read_text(encoding="utf-8")) if global_path.exists() else {}
-        state = BeliefState.model_validate(_normalize_belief_payload(payload, segment, target, global_payload.get("global_events", [])))
-        output_path = annotation_path(args.dataset_root, "belief_states", segment, target, args.annotation_root)
+        global_path = annotation_path(
+            args.dataset_root,
+            "global_events",
+            segment,
+            annotation_root=args.annotation_root,
+        )
+        global_payload = (
+            json.loads(global_path.read_text(encoding="utf-8"))
+            if global_path.exists()
+            else {}
+        )
+        state = BeliefState.model_validate(
+            _normalize_belief_payload(
+                payload, segment, target, global_payload.get("global_events", [])
+            )
+        )
+        output_path = annotation_path(
+            args.dataset_root, "belief_states", segment, target, args.annotation_root
+        )
         if output_path.exists() and not args.overwrite:
             return False, "output_exists"
         if not args.dry_run:
@@ -231,14 +302,27 @@ def recover_one(error_path: Path, args: argparse.Namespace, segments: dict[str, 
         return True, output_path.as_posix()
 
     if stage == "candidate_trials":
-        output_path = args.annotation_root / "candidate_trials" / "g001_candidate_trials.jsonl"
-        if output_path.exists() and not args.overwrite and _candidate_trials_exist(output_path, segment.segment_id):
+        output_path = (
+            args.annotation_root / "candidate_trials" / "g001_candidate_trials.jsonl"
+        )
+        if (
+            output_path.exists()
+            and not args.overwrite
+            and _candidate_trials_exist(output_path, segment.segment_id)
+        ):
             return False, "output_exists"
         items = _parse_array(raw, max_items=5)
-        trials = [CandidateTrial.model_validate(normalize_candidate_trial_payload(item, segment, index)) for index, item in enumerate(items, start=1)]
+        trials = [
+            CandidateTrial.model_validate(
+                normalize_candidate_trial_payload(item, segment, index)
+            )
+            for index, item in enumerate(items, start=1)
+        ]
         if not trials:
             return False, "no_recovered_items"
-        _append_candidate_trials(output_path, trials, segment.segment_id, args.overwrite, args.dry_run)
+        _append_candidate_trials(
+            output_path, trials, segment.segment_id, args.overwrite, args.dry_run
+        )
         return True, output_path.as_posix()
 
     return False, f"unsupported_stage:{stage}"

@@ -52,9 +52,7 @@ def _world_events(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return events
 
 
-def _claims(
-    rows: list[dict[str, Any]], players: list[str]
-) -> list[dict[str, Any]]:
+def _claims(rows: list[dict[str, Any]], players: list[str]) -> list[dict[str, Any]]:
     claims = []
     for index, row in enumerate(rows, start=1):
         speaker = str(row.get("speaker_id") or row.get("player_id") or "unknown")
@@ -112,7 +110,9 @@ def _snapshots(
     events: list[dict[str, Any]], claims: list[dict[str, Any]], players: list[str]
 ) -> list[dict[str, Any]]:
     end = max((float(row["abs_end_sec"]) for row in events), default=0.0)
-    cutoffs = [float(value) for value in range(0, int(math.ceil(end / 10.0)) * 10 + 1, 10)]
+    cutoffs = [
+        float(value) for value in range(0, int(math.ceil(end / 10.0)) * 10 + 1, 10)
+    ]
     if end not in cutoffs:
         cutoffs.append(end)
     rows = []
@@ -244,4 +244,6 @@ def build_seed_ledger(
     }
     for name, values in payloads.items():
         write_jsonl(output_root / name, values)
-    return {name.removesuffix(".jsonl"): len(values) for name, values in payloads.items()}
+    return {
+        name.removesuffix(".jsonl"): len(values) for name, values in payloads.items()
+    }

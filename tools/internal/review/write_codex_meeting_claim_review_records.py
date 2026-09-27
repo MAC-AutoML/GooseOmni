@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 REVIEW_DECISIONS: dict[str, dict[str, Any]] = {
     "mcgw_00001_g001_phase_001_meeting_000080_000390_w000_Gemini_u001": {
         "decision": "needs_audio_confirmation",
@@ -109,7 +108,9 @@ def infer_conservative_decision(item: dict[str, Any]) -> dict[str, Any]:
             ],
         }
 
-    invalid_targets = [target for target in target_players if target not in CANONICAL_PLAYERS]
+    invalid_targets = [
+        target for target in target_players if target not in CANONICAL_PLAYERS
+    ]
     if invalid_targets:
         return {
             "decision": "reject_for_gold",
@@ -151,27 +152,38 @@ def infer_conservative_decision(item: dict[str, Any]) -> dict[str, Any]:
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Write conservative Codex-human review records for meeting claim candidates.")
+    parser = argparse.ArgumentParser(
+        description="Write conservative Codex-human review records for meeting claim candidates."
+    )
     parser.add_argument("--review-queue", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     args = parser.parse_args()
 
     queue = read_jsonl(args.review_queue)
-    queue_by_id = {row["review_item_id"]: row for row in queue}
+    {row["review_item_id"]: row for row in queue}
     records: list[dict[str, Any]] = []
     for item in queue:
         item_id = item["review_item_id"]

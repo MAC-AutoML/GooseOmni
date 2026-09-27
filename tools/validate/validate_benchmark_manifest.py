@@ -10,7 +10,6 @@ from typing import Any
 
 from tools.validate.rebuild_benchmark_manifest import LINE_COUNT_PATHS, build_manifest
 
-
 EXPECTED_LINE_COUNTS = dict(
     zip(LINE_COUNT_PATHS, (889, 889, 48, 276, 160, 160), strict=True)
 )

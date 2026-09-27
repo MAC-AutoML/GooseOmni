@@ -15,20 +15,30 @@ def read_json(path: Path) -> dict[str, Any]:
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Report current GooseOmni meeting-claim benchmark expansion progress.")
+    parser = argparse.ArgumentParser(
+        description="Report current GooseOmni meeting-claim benchmark expansion progress."
+    )
     parser.add_argument(
         "--stable-root",
         type=Path,
-        default=Path("runs/gooseomni_decrypto_human_verified_combined_pass115_private_witness_safe_route"),
+        default=Path(
+            "runs/gooseomni_decrypto_human_verified_combined_pass115_private_witness_safe_route"
+        ),
     )
     parser.add_argument(
         "--meeting-root",
@@ -43,22 +53,40 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
-    stable_validation = read_json(args.stable_root / "benchmark/gooseomni_v1/reports/validation.json")
-    stable_trials = read_jsonl(args.stable_root / "benchmark/gooseomni_v1/static_trials/trials.jsonl")
-    stable_groups = read_jsonl(args.stable_root / "annotations/diagnostics/probe_groups.jsonl")
+    stable_validation = read_json(
+        args.stable_root / "benchmark/gooseomni_v1/reports/validation.json"
+    )
+    stable_trials = read_jsonl(
+        args.stable_root / "benchmark/gooseomni_v1/static_trials/trials.jsonl"
+    )
+    stable_groups = read_jsonl(
+        args.stable_root / "annotations/diagnostics/probe_groups.jsonl"
+    )
     stable_probe_types: dict[str, int] = {}
     for row in stable_trials:
         key = row.get("probe_type", "unknown")
         stable_probe_types[key] = stable_probe_types.get(key, 0) + 1
     stable_query_variables: dict[str, int] = {}
     for row in stable_groups:
-        qv = (row.get("query_variable") or {}).get("type") or row.get("query_variable_type") or "unknown"
+        qv = (
+            (row.get("query_variable") or {}).get("type")
+            or row.get("query_variable_type")
+            or "unknown"
+        )
         stable_query_variables[qv] = stable_query_variables.get(qv, 0) + 1
 
-    meeting_audit = read_json(args.meeting_root / "review/qwen_meeting_claim_audit_summary.json")
-    meeting_sync = read_json(args.meeting_root / "reports/sync_meeting_claim_extension_state_summary.json")
-    audio_audit = read_json(args.audio_root / "audit/audio_confirmation_audit_summary.json")
-    merge_review = read_json(args.audio_root / "codex_human_gold_merge_review_records/summary.json")
+    meeting_audit = read_json(
+        args.meeting_root / "review/qwen_meeting_claim_audit_summary.json"
+    )
+    meeting_sync = read_json(
+        args.meeting_root / "reports/sync_meeting_claim_extension_state_summary.json"
+    )
+    audio_audit = read_json(
+        args.audio_root / "audit/audio_confirmation_audit_summary.json"
+    )
+    merge_review = read_json(
+        args.audio_root / "codex_human_gold_merge_review_records/summary.json"
+    )
     drafts = read_json(args.audio_root / "probe_drafts_qwen_checked/summary.json")
     accept = read_json(args.audio_root / "human_gold_accept_candidates/summary.json")
 
@@ -88,7 +116,9 @@ def main() -> None:
         },
         "probe_draft_layer": {
             "merge_review_records": merge_review.get("records"),
-            "safe_for_probe_draft_generation": merge_review.get("safe_for_probe_draft_generation"),
+            "safe_for_probe_draft_generation": merge_review.get(
+                "safe_for_probe_draft_generation"
+            ),
             "qwen_checked_probe_groups": drafts.get("probe_groups"),
             "qwen_checked_probes": drafts.get("probes"),
             "human_gold_accept_candidate_groups": accept.get("probe_groups"),

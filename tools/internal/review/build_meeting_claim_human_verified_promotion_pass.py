@@ -17,17 +17,26 @@ PROBE_FILE_BY_TYPE = {
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
 
 
 def promote_row(row: dict[str, Any], review_record_id: str) -> dict[str, Any]:
@@ -42,31 +51,47 @@ def promote_row(row: dict[str, Any], review_record_id: str) -> dict[str, Any]:
     return out
 
 
-def build_promotion_pass(base_pass_root: Path, accept_roots: list[Path], output_pass_root: Path, overwrite: bool = False) -> dict[str, Any]:
+def build_promotion_pass(
+    base_pass_root: Path,
+    accept_roots: list[Path],
+    output_pass_root: Path,
+    overwrite: bool = False,
+) -> dict[str, Any]:
     if output_pass_root.exists():
         if not overwrite:
             raise SystemExit(f"output exists: {output_pass_root}")
         shutil.rmtree(output_pass_root)
 
     annotation_root = output_pass_root / "annotations"
-    shutil.copytree(base_pass_root / "annotations" / "oracle_ledger", annotation_root / "oracle_ledger")
+    shutil.copytree(
+        base_pass_root / "annotations" / "oracle_ledger",
+        annotation_root / "oracle_ledger",
+    )
     diag = annotation_root / "diagnostics"
 
     groups: list[dict[str, Any]] = []
     hidden: list[dict[str, Any]] = []
-    probes_by_file: dict[str, list[dict[str, Any]]] = {name: [] for name in PROBE_FILE_BY_TYPE.values()}
+    probes_by_file: dict[str, list[dict[str, Any]]] = {
+        name: [] for name in PROBE_FILE_BY_TYPE.values()
+    }
     quality: list[dict[str, Any]] = []
     review_records: list[dict[str, Any]] = []
     seen_groups: set[str] = set()
 
     for root in accept_roots:
-        root_groups = read_jsonl(root / "probe_groups.human_gold_accept_candidates.jsonl")
+        root_groups = read_jsonl(
+            root / "probe_groups.human_gold_accept_candidates.jsonl"
+        )
         root_probes = read_jsonl(root / "probes.human_gold_accept_candidates.jsonl")
-        root_hidden = read_jsonl(root / "hidden_gold.human_gold_accept_candidates.jsonl")
+        root_hidden = read_jsonl(
+            root / "hidden_gold.human_gold_accept_candidates.jsonl"
+        )
         probes_by_group: dict[str, list[dict[str, Any]]] = {}
         hidden_by_group: dict[str, list[dict[str, Any]]] = {}
         for probe in root_probes:
-            probes_by_group.setdefault(str(probe.get("probe_group_id")), []).append(probe)
+            probes_by_group.setdefault(str(probe.get("probe_group_id")), []).append(
+                probe
+            )
         for gold in root_hidden:
             hidden_by_group.setdefault(str(gold.get("probe_group_id")), []).append(gold)
 
@@ -83,7 +108,9 @@ def build_promotion_pass(base_pass_root: Path, accept_roots: list[Path], output_
             if group_id not in probes_by_group or group_id not in hidden_by_group:
                 continue
 
-            review_record_id = f"mc_final_accept_{len(review_records)+1:04d}_{group_id}"
+            review_record_id = (
+                f"mc_final_accept_{len(review_records) + 1:04d}_{group_id}"
+            )
             promoted_group = promote_row(group, review_record_id)
             promoted_group["quality"] = {
                 **(promoted_group.get("quality") or {}),
@@ -92,7 +119,9 @@ def build_promotion_pass(base_pass_root: Path, accept_roots: list[Path], output_
                 "promotion_to_human_verified_gold": True,
             }
             groups.append(promoted_group)
-            scope_limited = bool((group.get("quality") or {}).get("scope_limited_public_speech_gold"))
+            scope_limited = bool(
+                (group.get("quality") or {}).get("scope_limited_public_speech_gold")
+            )
             quality_reasons = [
                 "Meeting claim transcript passed exact/high-confidence accept-candidate gate.",
                 "Speaker identity passed high-confidence accept-candidate gate.",
@@ -102,7 +131,9 @@ def build_promotion_pass(base_pass_root: Path, accept_roots: list[Path], output_
                     "Gold scope is limited to public meeting-speech interpretation; unresolved aliases/context are preserved as scope limitations."
                 )
             else:
-                quality_reasons.append("No remaining uncertainties were allowed at promotion time.")
+                quality_reasons.append(
+                    "No remaining uncertainties were allowed at promotion time."
+                )
             quality.append(
                 {
                     "probe_group_id": group_id,
@@ -112,7 +143,9 @@ def build_promotion_pass(base_pass_root: Path, accept_roots: list[Path], output_
                     "diagnostic_score": 0.92,
                     "quality_reasons": quality_reasons,
                     "scope_limited_public_speech_gold": scope_limited,
-                    "scope_limitations": group.get("scope_limitations") if scope_limited else None,
+                    "scope_limitations": group.get("scope_limitations")
+                    if scope_limited
+                    else None,
                     "promotion_to_human_verified_gold": True,
                 }
             )
@@ -180,13 +213,17 @@ def build_promotion_pass(base_pass_root: Path, accept_roots: list[Path], output_
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Promote strict meeting-claim accept candidates to a human_verified extension pass.")
+    parser = argparse.ArgumentParser(
+        description="Promote strict meeting-claim accept candidates to a human_verified extension pass."
+    )
     parser.add_argument("--base-pass-root", type=Path, required=True)
     parser.add_argument("--accept-root", type=Path, action="append", required=True)
     parser.add_argument("--output-pass-root", type=Path, required=True)
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
-    summary = build_promotion_pass(args.base_pass_root, args.accept_root, args.output_pass_root, args.overwrite)
+    summary = build_promotion_pass(
+        args.base_pass_root, args.accept_root, args.output_pass_root, args.overwrite
+    )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 

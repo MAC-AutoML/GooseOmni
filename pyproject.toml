@@ -73,14 +73,19 @@ default = true
 
 [tool.uv.sources]
 decord = { path = "vendor/wheels/decord-0.6.0-py3-none-manylinux2010_x86_64.whl" }
-transformers = { git = "https://github.com/huggingface/transformers" }
+transformers = { git = "https://github.com/huggingface/transformers", rev = "8cb5963cc22174954e7dca2c0a3320b7dc2f4edc" }
 s2wrapper = { git = "https://github.com/bfshi/scaling_on_scales.git" }
 
 [tool.ruff]
 line-length = 88
 target-version = "py310"
+
+[tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "C4", "UP"]
-ignore = ["E501", "B008"]
+# A small set of standalone data tools bootstraps the local ``src`` checkout
+# before importing the installed package. Their imports are intentionally
+# delayed until after that bootstrap.
+ignore = ["E501", "B008", "E402"]
 
 [tool.ruff.format]
 quote-style = "double"

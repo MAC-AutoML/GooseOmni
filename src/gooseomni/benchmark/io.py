@@ -3,16 +3,18 @@ from __future__ import annotations
 import json
 import os
 import re
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
+
+from gooseomni.config.paths import PATHS
 
 from .schema import POVRef, Segment
-
 
 DEFAULT_DATASET_ROOT = Path(
     os.getenv(
         "GOOSEOMNI_DATASET_ROOT",
-        "/public/home/xty/workdir/omni_goose/data/gooseomni",
+        PATHS.root / "data" / "gooseomni",
     )
 )
 
@@ -60,7 +62,9 @@ def write_jsonl(path: Path, rows: Iterable[Any], append: bool = False) -> None:
     mode = "a" if append else "w"
     with path.open(mode, encoding="utf-8") as handle:
         for row in rows:
-            handle.write(json.dumps(_to_jsonable(row), ensure_ascii=False, separators=(",", ":")))
+            handle.write(
+                json.dumps(_to_jsonable(row), ensure_ascii=False, separators=(",", ":"))
+            )
             handle.write("\n")
 
 
@@ -72,7 +76,9 @@ def safe_json_loads(raw_text: str) -> Any:
 def _extract_json_text(raw_text: str) -> str:
     text = raw_text.strip()
     if text.startswith("```"):
-        fenced = re.match(r"```(?:json)?\s*(.*?)\s*```\s*$", text, flags=re.DOTALL | re.IGNORECASE)
+        fenced = re.match(
+            r"```(?:json)?\s*(.*?)\s*```\s*$", text, flags=re.DOTALL | re.IGNORECASE
+        )
         if fenced:
             return fenced.group(1).strip()
         if text.lower().startswith("```json"):

@@ -1,28 +1,17 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
-import sys
 from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from gooseomni.annotation.splitting import SplitConfig, run_split
 
+ROOT = Path(__file__).resolve().parents[1]
+
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Split raw multi-POV videos into aligned clips.")
+    parser = argparse.ArgumentParser(
+        description="Split raw multi-POV videos into aligned clips."
+    )
     parser.add_argument("--raw-dir", default="data/raw", type=Path)
     parser.add_argument("--output-dir", default="data/processed/clips", type=Path)
     parser.add_argument(

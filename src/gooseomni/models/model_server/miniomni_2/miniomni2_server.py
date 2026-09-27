@@ -1,25 +1,24 @@
 import argparse
 import os
-import sys
+import subprocess
 import tempfile
 import warnings
 from pathlib import Path
-import subprocess
 
 from flask import Flask, jsonify, request
 
-ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 from gooseomni.config.settings import CONFIG
-from gooseomni.models.model_server.local_common.gpu_visibility import configure_cuda_visible_devices
+from gooseomni.models.model_server.local_common.gpu_visibility import (
+    configure_cuda_visible_devices,
+)
 from gooseomni.models.model_server.local_common.http import parse_infer_request
+
+ROOT = Path(__file__).resolve().parents[3]
+
 
 # Add local mini-omni2 library to sys.path
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 MINI_OMNI2_LIB = os.path.join(SCRIPT_DIR, "mini_omni2_lib")
-sys.path.insert(0, MINI_OMNI2_LIB)
 
 warnings.filterwarnings("ignore")
 
@@ -34,7 +33,9 @@ PHYSICAL_GPUS = configure_cuda_visible_devices(
 LOGICAL_GPU = 0
 
 # Global configuration
-CHECKPOINT_PATH = CONFIG.model("miniomni_2").get("model_path") or "/publicssd/xty/models/mini-omni2"
+CHECKPOINT_PATH = (
+    CONFIG.model("miniomni_2").get("model_path") or "/publicssd/xty/models/mini-omni2"
+)
 MAX_RETURNED_TOKENS = CONFIG.model("miniomni_2").get("max_returned_tokens", 4096)
 TEMPERATURE = CONFIG.model("miniomni_2").get("temperature", 0.9)
 TOP_K = CONFIG.model("miniomni_2").get("top_k", 1)
@@ -59,8 +60,8 @@ def _parse_bool(value, default=True):
 
 
 def create_silent_audio(output_path, duration=1.0, sample_rate=16000):
-    import soundfile as sf
     import numpy as np
+    import soundfile as sf
 
     num_samples = int(duration * sample_rate)
     silent_audio = np.zeros(num_samples, dtype=np.float32)
@@ -145,11 +146,15 @@ def load_model():
     if model_loaded:
         return
 
-    from inference_vision_text import OmniVisionTextInference as _OmniVisionTextInference
+    from inference_vision_text import (
+        OmniVisionTextInference as _OmniVisionTextInference,
+    )
 
     OmniVisionInference = _OmniVisionTextInference
 
-    print(f"Loading Mini-Omni2 model to physical GPU {os.environ.get('CUDA_VISIBLE_DEVICES')} (logical GPU {LOGICAL_GPU})...")
+    print(
+        f"Loading Mini-Omni2 model to physical GPU {os.environ.get('CUDA_VISIBLE_DEVICES')} (logical GPU {LOGICAL_GPU})..."
+    )
     device = f"cuda:{LOGICAL_GPU}"
     model_client = OmniVisionInference(ckpt_dir=CHECKPOINT_PATH, device=device)
 
@@ -264,8 +269,12 @@ def analyze_video():
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Mini-Omni2 Video Analysis Server")
-    parser.add_argument("--port", type=int, default=5092, help="Server port (default: 5092)")
-    parser.add_argument("--host", default="0.0.0.0", help="Server host address (default: 0.0.0.0)")
+    parser.add_argument(
+        "--port", type=int, default=5092, help="Server port (default: 5092)"
+    )
+    parser.add_argument(
+        "--host", default="0.0.0.0", help="Server host address (default: 0.0.0.0)"
+    )
     return parser.parse_args()
 
 

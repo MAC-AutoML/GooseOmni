@@ -51,7 +51,8 @@ def build_information_state(
     accessible_ids = {
         row["trajectory_node_id"]
         for row in edges
-        if row["access"] in {"direct_visual", "direct_audio", "public_ui", "heard_claim"}
+        if row["access"]
+        in {"direct_visual", "direct_audio", "public_ui", "heard_claim"}
     }
     public_ids = {
         node["trajectory_node_id"]
@@ -72,9 +73,7 @@ def build_information_state(
         "private_observations": sorted(accessible_ids - public_ids),
         "public_history": sorted(public_ids),
         "heard_claims": sorted(
-            row["trajectory_node_id"]
-            for row in edges
-            if row["access"] == "heard_claim"
+            row["trajectory_node_id"] for row in edges if row["access"] == "heard_claim"
         ),
         "known_facts": sorted(accessible_ids | public_ids),
         "belief_distribution": [],

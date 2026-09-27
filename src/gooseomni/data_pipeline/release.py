@@ -61,9 +61,14 @@ def _reviewed_rows(
         final_public = final.get("public_trial", final)
         final_gold = final.get("gold", gold.get(trial_id))
         final_hidden = final.get("hidden_gold", hidden.get(trial_id))
-        if not all(isinstance(row, dict) for row in (final_public, final_gold, final_hidden)):
+        if not all(
+            isinstance(row, dict) for row in (final_public, final_gold, final_hidden)
+        ):
             raise ValueError(f"review decision has invalid row objects: {trial_id}")
-        if any(str(row.get("trial_id")) != trial_id for row in (final_public, final_gold, final_hidden)):
+        if any(
+            str(row.get("trial_id")) != trial_id
+            for row in (final_public, final_gold, final_hidden)
+        ):
             raise ValueError(f"review decision changed trial_id: {trial_id}")
         public_rows.append(_model_verified(final_public))
         gold_rows.append(_model_verified(final_gold))
@@ -108,7 +113,9 @@ def assemble_dynamic_v2(
     }
     fresh_groups = [
         _public_group(row)
-        for row in read_jsonl(candidate_root / "interactive_diagnostics/probe_groups.jsonl")
+        for row in read_jsonl(
+            candidate_root / "interactive_diagnostics/probe_groups.jsonl"
+        )
         if str(row.get("probe_group_id")) in group_ids
     ]
     fresh_by_id = {str(row["probe_group_id"]): row for row in fresh_groups}

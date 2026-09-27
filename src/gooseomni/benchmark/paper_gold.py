@@ -1,34 +1,15 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import collections
 import json
 import re
-import shutil
-import sys
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 from gooseomni.benchmark.decrypto_diagnostics import (  # noqa: E402
     PLAYERS,
-    generate_probes_for_group,
-    load_ledger,
-    write_json,
-    write_jsonl,
 )
-
 
 CRITICAL_EVENT_TYPES = {"death", "player_death", "combat"}
 CLAIM_BACKED_EVENT_TYPES = {
@@ -114,7 +95,11 @@ def edge_lookup(edges: list[dict[str, Any]]) -> dict[tuple[str, str], dict[str, 
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def event_by_id(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -160,7 +145,13 @@ def is_route_event(event: dict[str, Any]) -> bool:
         return False
     if not is_after_gameplay_phase_warmup(event):
         return False
-    if event.get("event_type") not in {"movement", "player_movement", "task", "task_completion", "gameplay"}:
+    if event.get("event_type") not in {
+        "movement",
+        "player_movement",
+        "task",
+        "task_completion",
+        "gameplay",
+    }:
         return False
     if len(event.get("source_povs", [])) != 1:
         return False
@@ -171,18 +162,53 @@ def is_route_event(event: dict[str, Any]) -> bool:
     description = text(event, "description")
     if has_bad_description(event) or has_critical_description(event):
         return False
-    if any(token in description for token in ["开始", "寻找目标", "周围有其他角色", "地图上", "声称", "击中", "倒下"]):
+    if any(
+        token in description
+        for token in [
+            "开始",
+            "寻找目标",
+            "周围有其他角色",
+            "地图上",
+            "声称",
+            "击中",
+            "倒下",
+        ]
+    ):
         return False
     if not any(player in description for player in PLAYERS):
         return False
-    return any(location in description for location in ["街道", "下水道", "学校", "实验室", "游戏厅", "警署", "餐厅", "电站", "公园", "大厅"])
+    return any(
+        location in description
+        for location in [
+            "街道",
+            "下水道",
+            "学校",
+            "实验室",
+            "游戏厅",
+            "警署",
+            "餐厅",
+            "电站",
+            "公园",
+            "大厅",
+        ]
+    )
 
 
 def normalized_description(event: dict[str, Any]) -> str:
     value = text(event, "description").lower()
     value = re.sub(r"\s+", "", value)
     value = re.sub(r"[。.,，'\"“”‘’\\[\\]（）()\\s]+", "", value)
-    for token in ["看到了", "看到", "角色", "的", "了", "在街道上", "周围有血迹", "尸体", "倒地"]:
+    for token in [
+        "看到了",
+        "看到",
+        "角色",
+        "的",
+        "了",
+        "在街道上",
+        "周围有血迹",
+        "尸体",
+        "倒地",
+    ]:
         value = value.replace(token, "")
     return value[:40]
 
@@ -195,7 +221,9 @@ def description_mentions_player(event: dict[str, Any], player: str) -> bool:
 def is_clean_event(event: dict[str, Any]) -> bool:
     if event.get("phase_type") in {"meeting", "final"}:
         return False
-    if event.get("phase_type") == "gameplay" and not is_after_gameplay_phase_warmup(event):
+    if event.get("phase_type") == "gameplay" and not is_after_gameplay_phase_warmup(
+        event
+    ):
         return False
     if event.get("event_type") in EXCLUDED_EVENT_TYPES:
         return False
@@ -209,22 +237,39 @@ def is_clean_event(event: dict[str, Any]) -> bool:
     return bool(source_povs) and all(player in PLAYERS for player in source_povs)
 
 
-def direct_players(event: dict[str, Any], edges: dict[tuple[str, str], dict[str, Any]]) -> list[str]:
+def direct_players(
+    event: dict[str, Any], edges: dict[tuple[str, str], dict[str, Any]]
+) -> list[str]:
     event_id = event["world_event_id"]
-    return [player for player in PLAYERS if edges.get((event_id, player), {}).get("visibility") == "direct_visual"]
+    return [
+        player
+        for player in PLAYERS
+        if edges.get((event_id, player), {}).get("visibility") == "direct_visual"
+    ]
 
 
-def hidden_players(event: dict[str, Any], edges: dict[tuple[str, str], dict[str, Any]]) -> list[str]:
+def hidden_players(
+    event: dict[str, Any], edges: dict[tuple[str, str], dict[str, Any]]
+) -> list[str]:
     event_id = event["world_event_id"]
-    return [player for player in PLAYERS if edges.get((event_id, player), {}).get("visibility") == "not_visible"]
+    return [
+        player
+        for player in PLAYERS
+        if edges.get((event_id, player), {}).get("visibility") == "not_visible"
+    ]
 
 
-def heard_by_target_before_cutoff(claim: dict[str, Any], target: str, cutoff: float) -> bool:
+def heard_by_target_before_cutoff(
+    claim: dict[str, Any], target: str, cutoff: float
+) -> bool:
     return target in claim.get("heard_by", []) and float(claim["abs_end_sec"]) <= cutoff
 
 
 def claim_is_usable(claim: dict[str, Any]) -> bool:
-    if any(str(seg).endswith("_final_003530_003540") or "_final_" in str(seg) for seg in claim.get("source_segment_ids", [])):
+    if any(
+        str(seg).endswith("_final_003530_003540") or "_final_" in str(seg)
+        for seg in claim.get("source_segment_ids", [])
+    ):
         return False
     if claim.get("speaker") not in PLAYERS:
         return False
@@ -238,19 +283,26 @@ def claim_is_usable(claim: dict[str, Any]) -> bool:
     return len(content) >= MIN_CLAIM_CONTENT_CHARS
 
 
-def claim_speaker_can_ground_anchor(event: dict[str, Any], claim: dict[str, Any], direct: list[str]) -> bool:
+def claim_speaker_can_ground_anchor(
+    event: dict[str, Any], claim: dict[str, Any], direct: list[str]
+) -> bool:
     speaker = str(claim.get("speaker") or "")
     if speaker in direct:
         return True
     if speaker in {str(actor) for actor in event.get("actors", [])}:
         description = text(event, "description")
-        if any(token in description for token in [f"{speaker}的角色倒地", f"{speaker} 被杀", f"{speaker}的尸体"]):
+        if any(
+            token in description
+            for token in [f"{speaker}的角色倒地", f"{speaker} 被杀", f"{speaker}的尸体"]
+        ):
             return False
         return True
     return False
 
 
-def build_links_by_event(links: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+def build_links_by_event(
+    links: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
     by_event: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
     for link in links:
         for event_id in link.get("world_event_ids", []):
@@ -258,7 +310,12 @@ def build_links_by_event(links: list[dict[str, Any]]) -> dict[str, list[dict[str
     return by_event
 
 
-def group_score(group: dict[str, Any], event: dict[str, Any], claim: dict[str, Any] | None, truth_status: str) -> tuple[int, str]:
+def group_score(
+    group: dict[str, Any],
+    event: dict[str, Any],
+    claim: dict[str, Any] | None,
+    truth_status: str,
+) -> tuple[int, str]:
     score = 0
     event_type = str(event.get("event_type"))
     if event_type in CRITICAL_EVENT_TYPES:
@@ -332,7 +389,9 @@ def make_group(
         "template": template,
         "quality": {
             "visibility_confidence": 0.85,
-            "claim_truth_confidence": 0.8 if truth_status in {"supported", "contradicted"} else 0.65,
+            "claim_truth_confidence": 0.8
+            if truth_status in {"supported", "contradicted"}
+            else 0.65,
             "timestamp_confidence": float(event.get("certainty", 0.75) or 0.75),
             "needs_human_review": True,
             "paper_gold_candidate": True,
@@ -340,5 +399,3 @@ def make_group(
         "needs_human_review": True,
         "gold_source": "qwen_checked",
     }
-
-

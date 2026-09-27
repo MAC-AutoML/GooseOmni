@@ -1,4 +1,10 @@
-from .decrypto_ledger import *  # noqa: F401,F403
+import collections
+import json
+from pathlib import Path
+from typing import Any
+
+from gooseomni.benchmark.decrypto_canonical import read_jsonl
+
 
 def load_ledger(root: Path) -> dict[str, list[dict[str, Any]]]:
     ledger = root / "oracle_ledger"
@@ -84,7 +90,11 @@ def make_probe_group(
     quality_review: bool = False,
 ) -> dict[str, Any]:
     cutoff = float(event["abs_end_sec"]) + 3.0
-    available = [claim["claim_id"] for claim in related_claims if target_player in claim.get("heard_by", [])]
+    available = [
+        claim["claim_id"]
+        for claim in related_claims
+        if target_player in claim.get("heard_by", [])
+    ]
     if template == "vote_influence":
         qtype = "trust_update"
     elif template == "private_witness":
@@ -92,7 +102,11 @@ def make_probe_group(
     elif template == "delayed_public_reveal":
         qtype = "hidden_event_awareness"
     else:
-        qtype = "claim_truth_vs_claim_awareness" if related_claims else "hidden_event_awareness"
+        qtype = (
+            "claim_truth_vs_claim_awareness"
+            if related_claims
+            else "hidden_event_awareness"
+        )
     families = ["false_belief", "representational_change"]
     if related_claims:
         families.append("claim_verification")
@@ -121,16 +135,21 @@ def make_probe_group(
         "template": template,
         "quality": {
             "visibility_confidence": 0.75,
-            "claim_truth_confidence": min([claim.get("certainty", 0.5) for claim in related_claims] + [0.6]),
+            "claim_truth_confidence": min(
+                [claim.get("certainty", 0.5) for claim in related_claims] + [0.6]
+            ),
             "timestamp_confidence": event.get("certainty", 0.5),
-            "needs_human_review": quality_review or event.get("needs_human_review", False),
+            "needs_human_review": quality_review
+            or event.get("needs_human_review", False),
         },
         "needs_human_review": quality_review or event.get("needs_human_review", False),
         "gold_source": "qwen_weak",
     }
 
 
-def select_probe_groups(ledger: dict[str, list[dict[str, Any]]], limit: int = 240) -> list[dict[str, Any]]:
+def select_probe_groups(
+    ledger: dict[str, list[dict[str, Any]]], limit: int = 240
+) -> list[dict[str, Any]]:
     events = ledger["world_events"]
     claims = ledger["claims"]
     links = ledger["claim_truth_links"]
@@ -148,8 +167,12 @@ def select_probe_groups(ledger: dict[str, list[dict[str, Any]]], limit: int = 24
             claims_for_event[event_id].append(claim)
             truth_for_event[event_id] = link.get("truth_status_global", "unverified")
 
-    candidates: dict[str, list[tuple[dict[str, Any], str, list[dict[str, Any]], bool]]] = collections.defaultdict(list)
-    for event in sorted(events, key=lambda row: (-len(row.get("source_povs", [])), row["abs_start_sec"])):
+    candidates: dict[
+        str, list[tuple[dict[str, Any], str, list[dict[str, Any]], bool]]
+    ] = collections.defaultdict(list)
+    for event in sorted(
+        events, key=lambda row: (-len(row.get("source_povs", [])), row["abs_start_sec"])
+    ):
         if not diagnostic_event_allowed(event):
             continue
         source_povs = set(event.get("source_povs", []))
@@ -158,14 +181,22 @@ def select_probe_groups(ledger: dict[str, list[dict[str, Any]]], limit: int = 24
         hidden_targets = [
             player
             for player in players
-            if player not in source_povs and edges.get((event["world_event_id"], player), {}).get("visibility") == "not_visible"
+            if player not in source_povs
+            and edges.get((event["world_event_id"], player), {}).get("visibility")
+            == "not_visible"
         ]
         related = claims_for_event.get(event["world_event_id"], [])
         for target in hidden_targets[:3]:
-            heard_related = [claim for claim in related if target in claim.get("heard_by", [])]
+            heard_related = [
+                claim for claim in related if target in claim.get("heard_by", [])
+            ]
             if related and not heard_related:
                 continue
-            template = "contradicted_alibi" if truth_for_event.get(event["world_event_id"]) == "contradicted" else "hidden_event_awareness"
+            template = (
+                "contradicted_alibi"
+                if truth_for_event.get(event["world_event_id"]) == "contradicted"
+                else "hidden_event_awareness"
+            )
             candidates[template].append((event, target, heard_related, False))
 
     for event in sorted(events, key=lambda row: row["abs_start_sec"]):
@@ -174,13 +205,23 @@ def select_probe_groups(ledger: dict[str, list[dict[str, Any]]], limit: int = 24
         if len(event.get("source_povs", [])) != 1:
             continue
         witness = event["source_povs"][0]
-        candidates["private_witness"].append((event, witness, claims_for_event.get(event["world_event_id"], []), True))
+        candidates["private_witness"].append(
+            (event, witness, claims_for_event.get(event["world_event_id"], []), True)
+        )
 
     for link in links:
-        if link.get("truth_status_global") not in {"supported", "contradicted", "ambiguous"}:
+        if link.get("truth_status_global") not in {
+            "supported",
+            "contradicted",
+            "ambiguous",
+        }:
             continue
         claim = claims_by_id.get(link["claim_id"])
-        if not claim or claim.get("strategic_role") not in {"accusation", "defense", "information_sharing"}:
+        if not claim or claim.get("strategic_role") not in {
+            "accusation",
+            "defense",
+            "information_sharing",
+        }:
             continue
         speaker = claim.get("speaker")
         if speaker not in players:
@@ -196,7 +237,14 @@ def select_probe_groups(ledger: dict[str, list[dict[str, Any]]], limit: int = 24
                 speaker_edge = edges.get((event_id, speaker), {})
                 if listener_edge.get("visibility") == speaker_edge.get("visibility"):
                     continue
-                candidates["vote_influence"].append((event, listener, [claim], bool(link.get("needs_human_review", False))))
+                candidates["vote_influence"].append(
+                    (
+                        event,
+                        listener,
+                        [claim],
+                        bool(link.get("needs_human_review", False)),
+                    )
+                )
                 break
 
     meeting_claims = [claim for claim in claims if len(claim.get("heard_by", [])) >= 4]
@@ -204,24 +252,41 @@ def select_probe_groups(ledger: dict[str, list[dict[str, Any]]], limit: int = 24
         if not diagnostic_event_allowed(event):
             continue
         source_povs = set(event.get("source_povs", []))
-        if not source_povs or len(source_povs) >= len(players) or event.get("phase_type") in {"meeting", "final"}:
+        if (
+            not source_povs
+            or len(source_povs) >= len(players)
+            or event.get("phase_type") in {"meeting", "final"}
+        ):
             continue
         later_public_claims = [
             claim
             for claim in meeting_claims
-            if event["abs_end_sec"] < claim["abs_start_sec"] <= event["abs_end_sec"] + 900
+            if event["abs_end_sec"]
+            < claim["abs_start_sec"]
+            <= event["abs_end_sec"] + 900
         ][:3]
         if not later_public_claims:
             continue
         for target in players:
             if target in source_povs:
                 continue
-            if edges.get((event["world_event_id"], target), {}).get("visibility") != "not_visible":
+            if (
+                edges.get((event["world_event_id"], target), {}).get("visibility")
+                != "not_visible"
+            ):
                 continue
-            candidates["delayed_public_reveal"].append((event, target, later_public_claims, True))
+            candidates["delayed_public_reveal"].append(
+                (event, target, later_public_claims, True)
+            )
             break
 
-    template_order = ["contradicted_alibi", "hidden_event_awareness", "private_witness", "vote_influence", "delayed_public_reveal"]
+    template_order = [
+        "contradicted_alibi",
+        "hidden_event_awareness",
+        "private_witness",
+        "vote_influence",
+        "delayed_public_reveal",
+    ]
     minimums = {
         "contradicted_alibi": max(1, int(limit * 0.10)),
         "hidden_event_awareness": max(1, int(limit * 0.35)),
@@ -233,7 +298,9 @@ def select_probe_groups(ledger: dict[str, list[dict[str, Any]]], limit: int = 24
     idx = 0
     used_keys: set[tuple[str, str, str]] = set()
 
-    def append_candidate(template: str, candidate: tuple[dict[str, Any], str, list[dict[str, Any]], bool]) -> None:
+    def append_candidate(
+        template: str, candidate: tuple[dict[str, Any], str, list[dict[str, Any]], bool]
+    ) -> None:
         nonlocal idx
         event, target, related_claims, quality_review = candidate
         key = (template, event["world_event_id"], target)
@@ -241,24 +308,37 @@ def select_probe_groups(ledger: dict[str, list[dict[str, Any]]], limit: int = 24
             return
         used_keys.add(key)
         idx += 1
-        group = make_probe_group(idx, event, target, template, related_claims, quality_review=quality_review)
+        group = make_probe_group(
+            idx, event, target, template, related_claims, quality_review=quality_review
+        )
         if template == "private_witness":
             group["hidden_event_ids_for_target"] = []
             group["available_evidence_ids_for_target"] = [event["world_event_id"]]
-            group["selection_reason"] = f"{target} directly saw {event['world_event_id']} while most other players did not."
+            group["selection_reason"] = (
+                f"{target} directly saw {event['world_event_id']} while most other players did not."
+            )
         elif template == "vote_influence":
             claim_ids = [claim["claim_id"] for claim in related_claims]
-            group["cutoff_abs_sec"] = max(float(claim["abs_end_sec"]) for claim in related_claims) + 2.0
+            group["cutoff_abs_sec"] = (
+                max(float(claim["abs_end_sec"]) for claim in related_claims) + 2.0
+            )
             edge = edges.get((event["world_event_id"], target), {})
             if edge.get("visibility") in {"direct_visual", "direct_audio", "public_ui"}:
                 group["hidden_event_ids_for_target"] = []
                 group["available_evidence_ids_for_target"] = sorted(
-                    set(group.get("available_evidence_ids_for_target", []) + edge.get("evidence_ids", []))
+                    set(
+                        group.get("available_evidence_ids_for_target", [])
+                        + edge.get("evidence_ids", [])
+                    )
                 )
-            group["selection_reason"] = f"Strategic claim(s) {claim_ids} may influence listener {target}, whose information state differs from the speaker."
+            group["selection_reason"] = (
+                f"Strategic claim(s) {claim_ids} may influence listener {target}, whose information state differs from the speaker."
+            )
         elif template == "delayed_public_reveal":
             claim_ids = [claim["claim_id"] for claim in related_claims]
-            group["selection_reason"] = f"{event['world_event_id']} is private before cutoff and later enters public discussion via claim(s) {claim_ids}."
+            group["selection_reason"] = (
+                f"{event['world_event_id']} is private before cutoff and later enters public discussion via claim(s) {claim_ids}."
+            )
         groups.append(group)
 
     for template in template_order:
@@ -277,10 +357,22 @@ def select_probe_groups(ledger: dict[str, list[dict[str, Any]]], limit: int = 24
     return groups[:limit]
 
 
-def snapshot_for(snapshots: list[dict[str, Any]], player: str, cutoff: float) -> dict[str, Any]:
-    candidates = [s for s in snapshots if s["target_player"] == player and s["cutoff_abs_sec"] <= cutoff + 1e-6]
+def snapshot_for(
+    snapshots: list[dict[str, Any]], player: str, cutoff: float
+) -> dict[str, Any]:
+    candidates = [
+        s
+        for s in snapshots
+        if s["target_player"] == player and s["cutoff_abs_sec"] <= cutoff + 1e-6
+    ]
     if not candidates:
-        return {"available_evidence_ids": [], "forbidden_event_ids": [], "public_history": [], "private_observations": [], "heard_claims": []}
+        return {
+            "available_evidence_ids": [],
+            "forbidden_event_ids": [],
+            "public_history": [],
+            "private_observations": [],
+            "heard_claims": [],
+        }
     return max(candidates, key=lambda row: row["cutoff_abs_sec"])
 
 
@@ -297,7 +389,11 @@ def compact_context(snapshot: dict[str, Any]) -> str:
 
 
 def public_query_form(group: dict[str, Any]) -> str:
-    query = group.get("query_variable", {}) if isinstance(group.get("query_variable"), dict) else {}
+    query = (
+        group.get("query_variable", {})
+        if isinstance(group.get("query_variable"), dict)
+        else {}
+    )
     return json.dumps(
         {
             "query_type": query.get("type", "unknown"),
@@ -305,7 +401,9 @@ def public_query_form(group: dict[str, Any]) -> str:
             "target_player": group.get("target_player"),
             "cutoff_abs_sec": group.get("cutoff_abs_sec"),
             "related_claim_ids": group.get("related_claim_ids", []),
-            "available_evidence_ids_for_target": group.get("available_evidence_ids_for_target", []),
+            "available_evidence_ids_for_target": group.get(
+                "available_evidence_ids_for_target", []
+            ),
             "task": "Judge what the target player could know, verify, doubt, or remain uncertain about from target-available evidence only.",
         },
         ensure_ascii=False,
@@ -313,7 +411,9 @@ def public_query_form(group: dict[str, Any]) -> str:
     )
 
 
-def speaker_listener_public_model(listener_snapshot: dict[str, Any], listener: str) -> str:
+def speaker_listener_public_model(
+    listener_snapshot: dict[str, Any], listener: str
+) -> str:
     return json.dumps(
         {
             "listener": listener,
@@ -327,12 +427,38 @@ def speaker_listener_public_model(listener_snapshot: dict[str, Any], listener: s
 
 def expected_schema_for(probe_type: str) -> dict[str, Any]:
     if probe_type == "A_pre_reveal_belief":
-        return {"knows_truth": "boolean", "belief_label": "believes_true|believes_false|uncertain|does_not_know|unknown", "likely_belief": "string", "suspicion_update": "increase|decrease|unchanged|unknown", "evidence_ids": "array[string]", "confidence": "number"}
+        return {
+            "knows_truth": "boolean",
+            "belief_label": "believes_true|believes_false|uncertain|does_not_know|unknown",
+            "likely_belief": "string",
+            "suspicion_update": "increase|decrease|unchanged|unknown",
+            "evidence_ids": "array[string]",
+            "confidence": "number",
+        }
     if probe_type == "B_post_reveal_reconstruct_previous_belief":
-        return {"target_knew_truth_at_cutoff": "boolean", "reconstructed_prior_belief": "string", "must_not_use_revealed_truth_as_prior_evidence": "boolean", "evidence_ids_available_at_cutoff": "array[string]", "confidence": "number"}
+        return {
+            "target_knew_truth_at_cutoff": "boolean",
+            "reconstructed_prior_belief": "string",
+            "must_not_use_revealed_truth_as_prior_evidence": "boolean",
+            "evidence_ids_available_at_cutoff": "array[string]",
+            "confidence": "number",
+        }
     if probe_type == "C_other_agent_false_belief":
-        return {"other_player": "string", "other_player_knew_truth_at_cutoff": "boolean", "other_player_likely_belief": "string", "evidence_ids_available_to_other_player": "array[string]", "confidence": "number"}
-    return {"speaker": "string", "listener": "string", "predicted_listener_trust_update": "increase|decrease|unchanged|unknown", "predicted_listener_next_action": "accuse|vote|defend|ignore|follow|avoid|unknown", "reason_from_speaker_perspective": "string", "confidence": "number"}
+        return {
+            "other_player": "string",
+            "other_player_knew_truth_at_cutoff": "boolean",
+            "other_player_likely_belief": "string",
+            "evidence_ids_available_to_other_player": "array[string]",
+            "confidence": "number",
+        }
+    return {
+        "speaker": "string",
+        "listener": "string",
+        "predicted_listener_trust_update": "increase|decrease|unchanged|unknown",
+        "predicted_listener_next_action": "accuse|vote|defend|ignore|follow|avoid|unknown",
+        "reason_from_speaker_perspective": "string",
+        "confidence": "number",
+    }
 
 
 def probe_prompt_header(group: dict[str, Any]) -> str:

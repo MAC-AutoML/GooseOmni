@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 PLAYERS = ["Gemini", "baile", "beigang", "mojiang", "saoyi", "xiaolu"]
 QUALITY_PROFILE = {
     "QWEN3_OMNI_MAX_TOKENS": 16384,
@@ -119,17 +118,26 @@ Required JSON schema:
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
 
 
 def load_manifest(release_root: Path) -> list[dict[str, Any]]:
     manifest = release_root / "inputs" / "manifest.jsonl"
-    return [json.loads(line) for line in manifest.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in manifest.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def phase_sort_key(phase_id: str) -> tuple[int, str]:
@@ -167,13 +175,20 @@ def pick_primary_player(available: set[str], preferred: list[str]) -> str:
     return sorted(available)[0]
 
 
-def build_tasks(release_root: Path, limit: int | None, primary_players: list[str]) -> list[dict[str, Any]]:
+def build_tasks(
+    release_root: Path, limit: int | None, primary_players: list[str]
+) -> list[dict[str, Any]]:
     rows = load_manifest(release_root)
     by_phase: dict[str, dict[str, Any]] = {}
     for row in rows:
         phase_id = str(row.get("phase_id"))
-        phase_type = normalize_phase_type(phase_id, str(row.get("phase_type") or phase_type_from_id(phase_id)))
-        if phase_type not in {"meeting", "voting", "vote_result"} and "meeting" not in phase_id:
+        phase_type = normalize_phase_type(
+            phase_id, str(row.get("phase_type") or phase_type_from_id(phase_id))
+        )
+        if (
+            phase_type not in {"meeting", "voting", "vote_result"}
+            and "meeting" not in phase_id
+        ):
             continue
         player_id = str(row.get("player_id"))
         if player_id not in PLAYERS:
@@ -197,16 +212,22 @@ def build_tasks(release_root: Path, limit: int | None, primary_players: list[str
         if not available:
             continue
         primary = pick_primary_player(available, primary_players)
-        primary_video = release_root / "inputs" / "videos" / "g001" / phase_id / f"{primary}.mp4"
+        primary_video = (
+            release_root / "inputs" / "videos" / "g001" / phase_id / f"{primary}.mp4"
+        )
         if not primary_video.exists():
             candidate = entry["players"].get(primary)
-            primary_video = release_root / str(candidate) if candidate else primary_video
+            primary_video = (
+                release_root / str(candidate) if candidate else primary_video
+            )
         meta = entry["metadata"].get(primary) or next(iter(entry["metadata"].values()))
         context_videos = []
         for player in PLAYERS:
             if player == primary or player not in available:
                 continue
-            path = release_root / "inputs" / "videos" / "g001" / phase_id / f"{player}.mp4"
+            path = (
+                release_root / "inputs" / "videos" / "g001" / phase_id / f"{player}.mp4"
+            )
             if path.exists():
                 context_videos.append(path.as_posix())
         tasks.append(
@@ -226,7 +247,9 @@ def build_tasks(release_root: Path, limit: int | None, primary_players: list[str
                     "aligned_start_sec": meta.get("aligned_start_sec"),
                     "aligned_end_sec": meta.get("aligned_end_sec"),
                     "duration_sec": meta.get("duration_sec"),
-                    "abs_sec_formula": meta.get("abs_sec_formula", "abs_sec = aligned_start_sec + local_sec"),
+                    "abs_sec_formula": meta.get(
+                        "abs_sec_formula", "abs_sec = aligned_start_sec + local_sec"
+                    ),
                 },
                 "phase_order": {
                     "episode_id": meta.get("episode_id"),
@@ -251,11 +274,19 @@ def build_tasks(release_root: Path, limit: int | None, primary_players: list[str
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build Qwen3-Omni meeting/vote claim-grounding reannotation pack.")
-    parser.add_argument("--release-root", type=Path, default=Path("runs/gooseomni_gameplay_pass1/release_benchmark_v2"))
+    parser = argparse.ArgumentParser(
+        description="Build Qwen3-Omni meeting/vote claim-grounding reannotation pack."
+    )
+    parser.add_argument(
+        "--release-root",
+        type=Path,
+        default=Path("runs/gooseomni_gameplay_pass1/release_benchmark_v2"),
+    )
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--limit", type=int, default=None)
-    parser.add_argument("--primary-player", action="append", default=["Gemini", "baile", "beigang"])
+    parser.add_argument(
+        "--primary-player", action="append", default=["Gemini", "baile", "beigang"]
+    )
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
 
@@ -278,9 +309,14 @@ def main() -> None:
         "prompt_template": prompt_path.as_posix(),
         "tasks": len(tasks),
         "tasks_with_primary_video": sum(
-            1 for task in tasks if task.get("primary_video_file") and Path(task["primary_video_file"]).exists()
+            1
+            for task in tasks
+            if task.get("primary_video_file")
+            and Path(task["primary_video_file"]).exists()
         ),
-        "total_context_videos": sum(len(task.get("context_video_files", [])) for task in tasks),
+        "total_context_videos": sum(
+            len(task.get("context_video_files", [])) for task in tasks
+        ),
         "quality_profile": QUALITY_PROFILE,
         "note": "Qwen outputs are qwen_checked candidates only; Codex-human visual gate is required before human_verified benchmark merge.",
     }

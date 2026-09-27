@@ -10,17 +10,26 @@ from typing import Any
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
 
 
 def load_by_key(path: Path, key: str) -> dict[str, dict[str, Any]]:
@@ -29,7 +38,10 @@ def load_by_key(path: Path, key: str) -> dict[str, dict[str, Any]]:
 
 def is_scope_limited_accept(merge: dict[str, Any]) -> tuple[bool, list[str]]:
     reasons: list[str] = []
-    if merge.get("codex_human_merge_decision") != "accept_for_qwen_checked_merge_candidate":
+    if (
+        merge.get("codex_human_merge_decision")
+        != "accept_for_qwen_checked_merge_candidate"
+    ):
         reasons.append("not_qwen_checked_merge_candidate")
     if merge.get("safe_for_probe_draft_generation") is not True:
         reasons.append("not_safe_for_probe_draft_generation")
@@ -49,7 +61,12 @@ def build_accept_candidates(
     probes_path: Path,
     hidden_gold_path: Path,
     merge_records_path: Path,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+]:
     groups = read_jsonl(groups_path)
     probes = read_jsonl(probes_path)
     hidden_gold = read_jsonl(hidden_gold_path)
@@ -99,9 +116,15 @@ def build_accept_candidates(
                 "scope_limited_accept": True,
                 "reject_reasons": reject_reasons,
                 "remaining_uncertainties_preserved": uncertainties,
-                "transcript_match": (merge.get("confirmed_transcript") or {}).get("transcript_match"),
-                "text_confidence": (merge.get("confirmed_transcript") or {}).get("text_confidence"),
-                "speaker_confidence": (merge.get("confirmed_speaker") or {}).get("speaker_confidence"),
+                "transcript_match": (merge.get("confirmed_transcript") or {}).get(
+                    "transcript_match"
+                ),
+                "text_confidence": (merge.get("confirmed_transcript") or {}).get(
+                    "text_confidence"
+                ),
+                "speaker_confidence": (merge.get("confirmed_speaker") or {}).get(
+                    "speaker_confidence"
+                ),
             }
         )
 
@@ -127,7 +150,9 @@ def build_accept_candidates(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build scope-limited human-gold accept candidates from meeting-claim drafts.")
+    parser = argparse.ArgumentParser(
+        description="Build scope-limited human-gold accept candidates from meeting-claim drafts."
+    )
     parser.add_argument("--probe-draft-root", type=Path, required=True)
     parser.add_argument("--merge-review-records", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
@@ -139,10 +164,16 @@ def main() -> None:
         args.probe_draft_root / "hidden_gold.qwen_checked_draft.jsonl",
         args.merge_review_records,
     )
-    write_jsonl(args.output_root / "probe_groups.human_gold_accept_candidates.jsonl", groups)
+    write_jsonl(
+        args.output_root / "probe_groups.human_gold_accept_candidates.jsonl", groups
+    )
     write_jsonl(args.output_root / "probes.human_gold_accept_candidates.jsonl", probes)
-    write_jsonl(args.output_root / "hidden_gold.human_gold_accept_candidates.jsonl", hidden)
-    write_jsonl(args.output_root / "scope_limited_accept_review_records.jsonl", review_records)
+    write_jsonl(
+        args.output_root / "hidden_gold.human_gold_accept_candidates.jsonl", hidden
+    )
+    write_jsonl(
+        args.output_root / "scope_limited_accept_review_records.jsonl", review_records
+    )
     probe_type_counts = Counter(row.get("probe_type") for row in probes)
     summary = {
         "ok": True,

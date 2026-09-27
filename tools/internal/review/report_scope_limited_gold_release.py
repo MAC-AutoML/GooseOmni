@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import collections
 import json
 from pathlib import Path
 from typing import Any
@@ -16,12 +15,18 @@ def read_json(path: Path) -> dict[str, Any]:
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def count_by(rows: list[dict[str, Any]], key: str) -> dict[str, int]:
@@ -41,34 +46,78 @@ def build_scope_report(pass_root: Path) -> dict[str, Any]:
     trials = read_jsonl(benchmark_root / "static_trials/trials.jsonl")
     validation = read_json(benchmark_root / "reports/validation.json")
 
-    scope_groups = [row for row in groups if (row.get("quality") or {}).get("scope_limited_public_speech_gold")]
+    scope_groups = [
+        row
+        for row in groups
+        if (row.get("quality") or {}).get("scope_limited_public_speech_gold")
+    ]
     scope_group_ids = {row["probe_group_id"] for row in scope_groups}
-    scope_quality = [row for row in quality if row.get("probe_group_id") in scope_group_ids]
-    scope_hidden = [row for row in hidden if row.get("probe_group_id") in scope_group_ids]
-    missing_scope_limitations = [row.get("probe_group_id") for row in scope_groups if not row.get("scope_limitations")]
-    quality_missing_scope_flag = [row.get("probe_group_id") for row in scope_quality if not row.get("scope_limited_public_speech_gold")]
-    hidden_missing_scope_flag = [row.get("probe_group_id") for row in scope_hidden if not row.get("scope_limited_public_speech_gold")]
-    trial_text = (benchmark_root / "static_trials/trials.jsonl").read_text(encoding="utf-8") if (benchmark_root / "static_trials/trials.jsonl").exists() else ""
+    scope_quality = [
+        row for row in quality if row.get("probe_group_id") in scope_group_ids
+    ]
+    scope_hidden = [
+        row for row in hidden if row.get("probe_group_id") in scope_group_ids
+    ]
+    missing_scope_limitations = [
+        row.get("probe_group_id")
+        for row in scope_groups
+        if not row.get("scope_limitations")
+    ]
+    quality_missing_scope_flag = [
+        row.get("probe_group_id")
+        for row in scope_quality
+        if not row.get("scope_limited_public_speech_gold")
+    ]
+    hidden_missing_scope_flag = [
+        row.get("probe_group_id")
+        for row in scope_hidden
+        if not row.get("scope_limited_public_speech_gold")
+    ]
+    trial_text = (
+        (benchmark_root / "static_trials/trials.jsonl").read_text(encoding="utf-8")
+        if (benchmark_root / "static_trials/trials.jsonl").exists()
+        else ""
+    )
 
     issues: list[dict[str, Any]] = []
     if validation.get("ok") is not True:
         issues.append({"code": "base_validation_not_ok", "validation": validation})
     if missing_scope_limitations:
-        issues.append({"code": "scope_groups_missing_scope_limitations", "ids": missing_scope_limitations[:20]})
+        issues.append(
+            {
+                "code": "scope_groups_missing_scope_limitations",
+                "ids": missing_scope_limitations[:20],
+            }
+        )
     if quality_missing_scope_flag:
-        issues.append({"code": "scope_quality_missing_flag", "ids": quality_missing_scope_flag[:20]})
+        issues.append(
+            {
+                "code": "scope_quality_missing_flag",
+                "ids": quality_missing_scope_flag[:20],
+            }
+        )
     if hidden_missing_scope_flag:
-        issues.append({"code": "scope_hidden_missing_flag", "ids": hidden_missing_scope_flag[:20]})
+        issues.append(
+            {"code": "scope_hidden_missing_flag", "ids": hidden_missing_scope_flag[:20]}
+        )
     if "hidden_gold" in trial_text or "forbidden_event_ids" in trial_text:
         issues.append({"code": "public_static_trials_leak_hidden_fields"})
 
     qv_counts: dict[str, int] = {}
     for row in groups:
-        qv = (row.get("query_variable") or {}).get("type") or row.get("query_variable_type") or "unknown"
+        qv = (
+            (row.get("query_variable") or {}).get("type")
+            or row.get("query_variable_type")
+            or "unknown"
+        )
         qv_counts[str(qv)] = qv_counts.get(str(qv), 0) + 1
     scope_qv_counts: dict[str, int] = {}
     for row in scope_groups:
-        qv = (row.get("query_variable") or {}).get("type") or row.get("query_variable_type") or "unknown"
+        qv = (
+            (row.get("query_variable") or {}).get("type")
+            or row.get("query_variable_type")
+            or "unknown"
+        )
         scope_qv_counts[str(qv)] = scope_qv_counts.get(str(qv), 0) + 1
 
     return {
@@ -94,7 +143,11 @@ def build_scope_report(pass_root: Path) -> dict[str, Any]:
                 "global truth of a spoken claim unless independently supported by oracle ledger",
                 "private POV observations not present in the public meeting clip",
             ],
-            "public_trials_hidden_gold_leak_check": "passed" if not any(i["code"] == "public_static_trials_leak_hidden_fields" for i in issues) else "failed",
+            "public_trials_hidden_gold_leak_check": "passed"
+            if not any(
+                i["code"] == "public_static_trials_leak_hidden_fields" for i in issues
+            )
+            else "failed",
         },
     }
 
@@ -111,7 +164,7 @@ GooseOmni-v1 is a trajectory-derived Theory-of-Mind diagnostic benchmark built f
 
 ## Release Scope
 
-This pass contains {counts['probe_groups']} human-verified probe groups and {counts['trials']} public static trials. Of these, {counts['scope_limited_groups']} groups are `scope_limited_public_speech_gold`: they certify public meeting-speech transcript, speaker identity, and public interpretation probes, while preserving unresolved display-name or context uncertainty as explicit scope limitations.
+This pass contains {counts["probe_groups"]} human-verified probe groups and {counts["trials"]} public static trials. Of these, {counts["scope_limited_groups"]} groups are `scope_limited_public_speech_gold`: they certify public meeting-speech transcript, speaker identity, and public interpretation probes, while preserving unresolved display-name or context uncertainty as explicit scope limitations.
 
 Scope-limited meeting-speech gold does not certify unresolved display names as canonical identities, does not certify a spoken claim as globally true unless independently supported by the oracle ledger, and does not add private POV evidence not present in the public meeting clip.
 
@@ -121,9 +174,9 @@ Segments are storage units only. The benchmark unit is a trajectory node: `cutof
 
 ## Counts
 
-- probe_groups: {counts['probe_groups']}
-- static_trials/prompts: {counts['trials']}
-- scope_limited_public_speech_groups: {counts['scope_limited_groups']}
+- probe_groups: {counts["probe_groups"]}
+- static_trials/prompts: {counts["trials"]}
+- scope_limited_public_speech_groups: {counts["scope_limited_groups"]}
 - query_variable_counts: `{json.dumps(qv, ensure_ascii=False)}`
 - scope_limited_query_variable_counts: `{json.dumps(scope_qv, ensure_ascii=False)}`
 - probe_type_counts: `{json.dumps(probe_types, ensure_ascii=False)}`
@@ -155,7 +208,9 @@ All groups in this pass have `gold_source=human_verified`. Scope-limited groups 
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Audit and document scope-limited human gold release semantics.")
+    parser = argparse.ArgumentParser(
+        description="Audit and document scope-limited human gold release semantics."
+    )
     parser.add_argument("--pass-root", type=Path, required=True)
     parser.add_argument("--write-card", action="store_true")
     args = parser.parse_args()

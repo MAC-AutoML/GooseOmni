@@ -10,20 +10,51 @@ TOM_LAYERS = (
     "intent_and_action_prediction",
     "stance_trust_and_agreement",
 )
-CERTAINTY_LEVELS = {"explicit", "behaviorally_supported", "inferred_distribution", "unknown"}
+CERTAINTY_LEVELS = {
+    "explicit",
+    "behaviorally_supported",
+    "inferred_distribution",
+    "unknown",
+}
 LAYER_EVENT_TYPES = {
     "perception_access": {
-        "movement", "encounter", "task", "task_ui", "interaction", "meeting",
-        "vote", "kill", "body_report", "action_outcome", "utterance", "claim",
-        "reaction", "accusation", "defense", "audio_cue",
+        "movement",
+        "encounter",
+        "task",
+        "task_ui",
+        "interaction",
+        "meeting",
+        "vote",
+        "kill",
+        "body_report",
+        "action_outcome",
+        "utterance",
+        "claim",
+        "reaction",
+        "accusation",
+        "defense",
+        "audio_cue",
     },
     "knowledge_state": {
-        "encounter", "meeting", "vote", "kill", "body_report", "action_outcome",
-        "utterance", "claim", "accusation", "defense",
+        "encounter",
+        "meeting",
+        "vote",
+        "kill",
+        "body_report",
+        "action_outcome",
+        "utterance",
+        "claim",
+        "accusation",
+        "defense",
     },
     "belief_and_false_belief": {"utterance", "claim", "accusation", "defense"},
     "intent_and_action_prediction": {
-        "movement", "task", "task_ui", "interaction", "vote", "action_outcome",
+        "movement",
+        "task",
+        "task_ui",
+        "interaction",
+        "vote",
+        "action_outcome",
     },
     "stance_trust_and_agreement": {"reaction", "accusation", "defense", "vote"},
 }
@@ -89,10 +120,15 @@ def structured_gold(
     base = {"subject_only_evidence_ids": sorted(evidence)}
     event_types = sorted({str(node.get("event_type", "unknown")) for node in relevant})
     if layer == "perception_access":
-        access = "direct_visual" if any(
-            target_player in {str(value) for value in node.get("visible_players", [])}
-            for node in relevant
-        ) else "public_ui"
+        access = (
+            "direct_visual"
+            if any(
+                target_player
+                in {str(value) for value in node.get("visible_players", [])}
+                for node in relevant
+            )
+            else "public_ui"
+        )
         return {
             **base,
             "certainty": "behaviorally_supported",
@@ -152,7 +188,9 @@ def structured_gold(
                 **base,
                 "certainty": "behaviorally_supported",
                 "answer": {
-                    "next_observed_event_type": str(future.get("event_type", "unknown")),
+                    "next_observed_event_type": str(
+                        future.get("event_type", "unknown")
+                    ),
                     "location": str(future.get("location") or "unknown"),
                 },
                 "future_evidence_ids": sorted(
@@ -188,7 +226,9 @@ def build_trial_group(
         raise ValueError("invalid ToM gold certainty")
     if layer in {"intent_and_action_prediction", "stance_trust_and_agreement"}:
         if certainty == "inferred_distribution" and "answer" in gold:
-            raise ValueError("inferred distributions cannot become a single factual answer")
+            raise ValueError(
+                "inferred distributions cannot become a single factual answer"
+            )
     subject = str(state["player_id"])
     episode_id = str(state["episode_id"])
     cutoff = float(state["cutoff_abs_sec"])
@@ -242,7 +282,9 @@ def validate_trials(rows: list[dict[str, Any]]) -> list[str]:
             issues.append(f"invalid ToM layer: {row.get('trial_id')}")
         else:
             layer_counts[layer] += 1
-        splits.setdefault(str(row.get("probe_group_id")), set()).add(str(row.get("split")))
+        splits.setdefault(str(row.get("probe_group_id")), set()).add(
+            str(row.get("split"))
+        )
         if float(row.get("cutoff_abs_sec", -1)) < 0:
             issues.append(f"invalid cutoff: {row.get('trial_id')}")
         gold = row.get("gold") if isinstance(row.get("gold"), dict) else {}

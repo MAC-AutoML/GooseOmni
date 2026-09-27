@@ -13,7 +13,9 @@ from gooseomni.benchmark.agentic_midgame import (
 )
 
 
-def _event(event_id: str, source: str, start: float, event_type: str, actor: str | None = None) -> dict:
+def _event(
+    event_id: str, source: str, start: float, event_type: str, actor: str | None = None
+) -> dict:
     return {
         "world_event_id": event_id,
         "game_id": "g001",
@@ -44,7 +46,9 @@ def _edges(events: list[dict]) -> list[dict]:
                     "player_id": player,
                     "cutoff_abs_sec": event["abs_end_sec"],
                     "visibility": visible,
-                    "evidence_ids": [event["world_event_id"]] if visible == "direct_visual" else [],
+                    "evidence_ids": [event["world_event_id"]]
+                    if visible == "direct_visual"
+                    else [],
                     "confidence": 0.9,
                 }
             )
@@ -57,9 +61,24 @@ def _snapshot(player: str, cutoff: float) -> dict:
         "game_id": "g001",
         "target_player": player,
         "cutoff_abs_sec": cutoff,
-        "public_history": [{"evidence_id": "claim_000001", "content": "Gemini said an alibi."}],
-        "private_observations": [{"evidence_id": f"obs_{player}", "world_event_id": "ge_visible", "content": "local visible context"}],
-        "heard_claims": [{"evidence_id": "claim_000001", "claim_id": "claim_000001", "speaker": "Gemini", "content": "我没去右边。"}],
+        "public_history": [
+            {"evidence_id": "claim_000001", "content": "Gemini said an alibi."}
+        ],
+        "private_observations": [
+            {
+                "evidence_id": f"obs_{player}",
+                "world_event_id": "ge_visible",
+                "content": "local visible context",
+            }
+        ],
+        "heard_claims": [
+            {
+                "evidence_id": "claim_000001",
+                "claim_id": "claim_000001",
+                "speaker": "Gemini",
+                "content": "我没去右边。",
+            }
+        ],
         "inferred_beliefs": [],
         "available_evidence_ids": ["claim_000001", f"obs_{player}"],
         "forbidden_event_ids": [],
@@ -69,7 +88,10 @@ def _snapshot(player: str, cutoff: float) -> dict:
 def _ledger(root: Path) -> Path:
     ann = root / "annotations"
     ledger = ann / "oracle_ledger"
-    events = [_event("ge_000001", "Gemini", 10, "movement", "Gemini"), _event("ge_000002", "baile", 80, "task", "baile")]
+    events = [
+        _event("ge_000001", "Gemini", 10, "movement", "Gemini"),
+        _event("ge_000002", "baile", 80, "task", "baile"),
+    ]
     claim = {
         "claim_id": "claim_000001",
         "game_id": "g001",
@@ -85,18 +107,36 @@ def _ledger(root: Path) -> Path:
         "claim_id": "claim_000001",
         "world_event_ids": ["ge_000001"],
         "truth_status_global": "contradicted",
-        "local_awareness_by_player": {player: ("has_contradictory_visual_evidence" if player == "Gemini" else "not_enough_information") for player in PLAYERS},
+        "local_awareness_by_player": {
+            player: (
+                "has_contradictory_visual_evidence"
+                if player == "Gemini"
+                else "not_enough_information"
+            )
+            for player in PLAYERS
+        },
     }
     write_jsonl(ledger / "world_events.jsonl", events)
     write_jsonl(ledger / "claims.jsonl", [claim])
     write_jsonl(ledger / "claim_truth_links.jsonl", [link])
     write_jsonl(ledger / "visibility_edges.jsonl", _edges(events))
-    write_jsonl(ledger / "belief_memory_snapshots.jsonl", [_snapshot(player, cutoff) for player in PLAYERS for cutoff in [2.0, 23.0, 36.0]])
+    write_jsonl(
+        ledger / "belief_memory_snapshots.jsonl",
+        [
+            _snapshot(player, cutoff)
+            for player in PLAYERS
+            for cutoff in [2.0, 23.0, 36.0]
+        ],
+    )
     return ann
 
 
 def _read_jsonl(path: Path) -> list[dict]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def test_agentic_midgame_builds_four_public_safe_families(tmp_path: Path) -> None:
@@ -104,8 +144,12 @@ def test_agentic_midgame_builds_four_public_safe_families(tmp_path: Path) -> Non
     bench = tmp_path / "benchmark" / "gooseomni_v1"
 
     counts = build_agentic_midgame_prediction(ann, bench, limit=4)
-    trials = _read_jsonl(bench / "public" / "agentic_midgame_prediction" / "trials.jsonl")
-    hidden = _read_jsonl(bench / "private" / "agentic_midgame_prediction" / "hidden_gold.jsonl")
+    trials = _read_jsonl(
+        bench / "public" / "agentic_midgame_prediction" / "trials.jsonl"
+    )
+    hidden = _read_jsonl(
+        bench / "private" / "agentic_midgame_prediction" / "hidden_gold.jsonl"
+    )
 
     assert counts["trials"] == 4
     assert {row["probe_family"] for row in trials} == {
@@ -115,7 +159,11 @@ def test_agentic_midgame_builds_four_public_safe_families(tmp_path: Path) -> Non
         "H_deception_state_inference",
     }
     assert len(hidden) == 4
-    assert all({"ego_player", "cutoff_abs_sec", "prediction_target", "prediction_window"} <= set(row) for row in trials)
+    assert all(
+        {"ego_player", "cutoff_abs_sec", "prediction_target", "prediction_window"}
+        <= set(row)
+        for row in trials
+    )
     assert public_leak_hits(trials) == []
 
 
@@ -123,18 +171,39 @@ def test_agentic_scoring_detects_accuracy_and_overclaim(tmp_path: Path) -> None:
     ann = _ledger(tmp_path)
     bench = tmp_path / "benchmark" / "gooseomni_v1"
     build_agentic_midgame_prediction(ann, bench, limit=4)
-    trials = _read_jsonl(bench / "public" / "agentic_midgame_prediction" / "trials.jsonl")
+    trials = _read_jsonl(
+        bench / "public" / "agentic_midgame_prediction" / "trials.jsonl"
+    )
     responses = []
     for row in trials:
         if row["probe_family"] == "E_hidden_world_state_estimation":
-            parsed = {"oracle_guess": {"event_type": "location"}, "evidence_ids": ["claim_000001"], "must_not_claim_direct_observation": True}
+            parsed = {
+                "oracle_guess": {"event_type": "location"},
+                "evidence_ids": ["claim_000001"],
+                "must_not_claim_direct_observation": True,
+            }
         elif row["probe_family"] == "F_other_player_current_action_prediction":
             parsed = {"predicted_action": "location", "evidence_ids": ["claim_000001"]}
         elif row["probe_family"] == "G_next_behavior_prediction":
-            parsed = {"top1_next_behavior": "task", "topk_next_behaviors": ["task", "move"], "evidence_ids": ["claim_000001"]}
+            parsed = {
+                "top1_next_behavior": "task",
+                "topk_next_behaviors": ["task", "move"],
+                "evidence_ids": ["claim_000001"],
+            }
         else:
-            parsed = {"global_truth_guess": "contradicted", "local_knowability": "cannot_know", "evidence_ids": ["claim_000001"]}
-        responses.append({"trial_id": row["trial_id"], "probe_family": row["probe_family"], "parsed": parsed, "raw_response": json.dumps(parsed)})
+            parsed = {
+                "global_truth_guess": "contradicted",
+                "local_knowability": "cannot_know",
+                "evidence_ids": ["claim_000001"],
+            }
+        responses.append(
+            {
+                "trial_id": row["trial_id"],
+                "probe_family": row["probe_family"],
+                "parsed": parsed,
+                "raw_response": json.dumps(parsed),
+            }
+        )
     response_path = tmp_path / "responses.jsonl"
     write_jsonl(response_path, responses)
 

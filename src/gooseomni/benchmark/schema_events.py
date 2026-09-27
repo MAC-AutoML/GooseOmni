@@ -5,7 +5,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-
 DATASET_NAME = "gooseomni"
 VALID_PLAYERS = ("Gemini", "baile", "beigang", "mojiang", "saoyi", "xiaolu")
 VALID_PLAYER_SET = set(VALID_PLAYERS)
@@ -41,7 +40,7 @@ class POVRef(BaseModel):
         return Path(value).as_posix()
 
     @model_validator(mode="after")
-    def validate_time_order(self) -> "POVRef":
+    def validate_time_order(self) -> POVRef:
         if self.aligned_end_sec <= self.aligned_start_sec:
             raise ValueError("aligned_end_sec must be greater than aligned_start_sec")
         return self
@@ -59,18 +58,25 @@ class Segment(BaseModel):
     povs: list[POVRef]
 
     @model_validator(mode="after")
-    def validate_segment(self) -> "Segment":
+    def validate_segment(self) -> Segment:
         if self.dataset != DATASET_NAME:
             raise ValueError(f"dataset must be {DATASET_NAME}")
         if self.aligned_end_sec <= self.aligned_start_sec:
             raise ValueError("aligned_end_sec must be greater than aligned_start_sec")
-        if abs((self.aligned_end_sec - self.aligned_start_sec) - self.duration_sec) > 1e-6:
-            raise ValueError("duration_sec must equal aligned_end_sec - aligned_start_sec")
+        if (
+            abs((self.aligned_end_sec - self.aligned_start_sec) - self.duration_sec)
+            > 1e-6
+        ):
+            raise ValueError(
+                "duration_sec must equal aligned_end_sec - aligned_start_sec"
+            )
         players = [pov.player_id for pov in self.povs]
         if len(players) != self.pov_count:
             raise ValueError("pov_count must match number of povs")
         if sorted(players) != sorted(VALID_PLAYERS):
-            raise ValueError("strict gooseomni segment must contain exactly the 6 valid players")
+            raise ValueError(
+                "strict gooseomni segment must contain exactly the 6 valid players"
+            )
         for pov in self.povs:
             if pov.aligned_start_sec != self.aligned_start_sec:
                 raise ValueError("POV aligned_start_sec must match segment")
@@ -111,7 +117,7 @@ class TimedEvidenceModel(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def validate_time_order(self) -> "TimedEvidenceModel":
+    def validate_time_order(self) -> TimedEvidenceModel:
         if self.local_end_sec <= self.local_start_sec:
             raise ValueError("local_end_sec must be greater than local_start_sec")
         if self.abs_end_sec <= self.abs_start_sec:
@@ -272,7 +278,9 @@ class GlobalEvent(TimedEvidenceModel):
     supporting_utterance_ids: list[str] = Field(default_factory=list)
     conflict: bool = False
 
-    @field_validator("involved_players", "actors", "visible_to", "heard_by", "not_visible_to")
+    @field_validator(
+        "involved_players", "actors", "visible_to", "heard_by", "not_visible_to"
+    )
     @classmethod
     def validate_player_lists(cls, value: list[str]) -> list[str]:
         for player_id in value:
@@ -347,7 +355,7 @@ class MemoryItem(BaseModel):
     needs_human_review: bool = False
 
     @model_validator(mode="after")
-    def validate_sources(self) -> "MemoryItem":
+    def validate_sources(self) -> MemoryItem:
         if not self.source_event_ids and not self.source_claim_ids:
             self.needs_human_review = True
         return self
@@ -460,5 +468,3 @@ class InformationState(BaseModel):
         for player_id in value:
             _validate_player(player_id)
         return value
-
-

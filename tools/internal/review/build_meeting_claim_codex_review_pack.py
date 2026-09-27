@@ -12,17 +12,26 @@ def read_json(path: Path) -> dict[str, Any]:
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
 
 
 def make_contact_sheet(video: Path, output: Path) -> bool:
@@ -39,15 +48,16 @@ def make_contact_sheet(video: Path, output: Path) -> bool:
             "1",
             output.as_posix(),
         ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         text=True,
     )
     return proc.returncode == 0 and output.exists() and output.stat().st_size > 0
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build strict Codex-human review pack for Qwen meeting-claim candidates.")
+    parser = argparse.ArgumentParser(
+        description="Build strict Codex-human review pack for Qwen meeting-claim candidates."
+    )
     parser.add_argument("--audit-root", type=Path, required=True)
     parser.add_argument("--results-root", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
@@ -58,7 +68,9 @@ def main() -> None:
 
     rows = read_jsonl(args.audit_root / "qwen_meeting_claim_audit_rows.jsonl")
     row_by_task = {row["review_task_id"]: row for row in rows}
-    candidates = read_jsonl(args.audit_root / "candidate_claims_for_codex_human_review.jsonl")
+    candidates = read_jsonl(
+        args.audit_root / "candidate_claims_for_codex_human_review.jsonl"
+    )
     selected: list[dict[str, Any]] = []
     for candidate in candidates:
         if candidate.get("review_priority") not in set(args.priority):

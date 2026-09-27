@@ -1,24 +1,10 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import json
-import sys
 from collections import Counter
 from pathlib import Path
 from typing import Any
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 
 CORE_REQUIRED_FILES = [
     "README.md",
@@ -85,12 +71,19 @@ def read_json(path: Path) -> Any:
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
 
 def row_id(row: dict[str, Any]) -> str:
@@ -104,21 +97,29 @@ def duplicate_ids(rows: list[dict[str, Any]], id_field_name: str) -> list[str]:
 
 
 def probe_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
-    return dict(sorted(Counter(str(row.get("probe_type", "unknown")) for row in rows).items()))
+    return dict(
+        sorted(Counter(str(row.get("probe_type", "unknown")) for row in rows).items())
+    )
 
 
 def public_leak_hits(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
     hits = []
-    for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    for line_no, line in enumerate(
+        path.read_text(encoding="utf-8").splitlines(), start=1
+    ):
         for pattern in PUBLIC_LEAK_PATTERNS:
             if pattern in line:
-                hits.append({"path": path.as_posix(), "line": line_no, "pattern": pattern})
+                hits.append(
+                    {"path": path.as_posix(), "line": line_no, "pattern": pattern}
+                )
     return hits
 
 
-def expected_core_prompt_ids(full_prompts: list[dict[str, Any]], behavior_grounded_d_groups: set[str]) -> set[str]:
+def expected_core_prompt_ids(
+    full_prompts: list[dict[str, Any]], behavior_grounded_d_groups: set[str]
+) -> set[str]:
     expected = set()
     for prompt in full_prompts:
         probe_type = prompt.get("probe_type")
@@ -141,15 +142,20 @@ def d_groups_from_prompts(prompts: list[dict[str, Any]]) -> set[str]:
     }
 
 
-def behavior_grounded_groups(diagnostic_hidden_gold: list[dict[str, Any]], full_d_groups: set[str]) -> set[str]:
+def behavior_grounded_groups(
+    diagnostic_hidden_gold: list[dict[str, Any]], full_d_groups: set[str]
+) -> set[str]:
     return {
         str(row.get("probe_group_id"))
         for row in diagnostic_hidden_gold
-        if row.get("behavior_grounded_d_gold") and row.get("probe_group_id") in full_d_groups
+        if row.get("behavior_grounded_d_gold")
+        and row.get("probe_group_id") in full_d_groups
     }
 
 
-def adjudicated_extended_groups(diagnostic_hidden_gold: list[dict[str, Any]]) -> set[str]:
+def adjudicated_extended_groups(
+    diagnostic_hidden_gold: list[dict[str, Any]],
+) -> set[str]:
     groups = set()
     for row in diagnostic_hidden_gold:
         adjudication = row.get("leaderboard_core_D_adjudication")
@@ -158,7 +164,9 @@ def adjudicated_extended_groups(diagnostic_hidden_gold: list[dict[str, Any]]) ->
     return groups
 
 
-def validate_leaderboard_core(annotation_root: Path, benchmark_root: Path) -> dict[str, Any]:
+def validate_leaderboard_core(
+    annotation_root: Path, benchmark_root: Path
+) -> dict[str, Any]:
     issues: list[dict[str, Any]] = []
     core_root = benchmark_root / "leaderboard_core"
 
@@ -167,8 +175,12 @@ def validate_leaderboard_core(annotation_root: Path, benchmark_root: Path) -> di
         if not path.exists():
             issues.append({"code": "missing_core_file", "path": path.as_posix()})
 
-    full_prompts = read_jsonl(benchmark_root / "interactive_diagnostics" / "prompts.jsonl")
-    diagnostic_hidden_gold = read_jsonl(annotation_root / "diagnostics" / "hidden_gold.jsonl")
+    full_prompts = read_jsonl(
+        benchmark_root / "interactive_diagnostics" / "prompts.jsonl"
+    )
+    diagnostic_hidden_gold = read_jsonl(
+        annotation_root / "diagnostics" / "hidden_gold.jsonl"
+    )
     core_prompts = read_jsonl(core_root / "interactive_prompts.jsonl")
     core_trials = read_jsonl(core_root / "trials.jsonl")
     core_gold = read_jsonl(core_root / "gold.jsonl")
@@ -179,11 +191,21 @@ def validate_leaderboard_core(annotation_root: Path, benchmark_root: Path) -> di
     grounded_d_groups = behavior_grounded_groups(diagnostic_hidden_gold, full_d_groups)
     expected_excluded_d_groups = full_d_groups - grounded_d_groups
     expected_prompt_ids = expected_core_prompt_ids(full_prompts, grounded_d_groups)
-    core_prompt_ids = {str(row.get("probe_id")) for row in core_prompts if row.get("probe_id")}
-    core_trial_ids = {str(row.get("trial_id")) for row in core_trials if row.get("trial_id")}
-    core_gold_ids = {str(row.get("trial_id")) for row in core_gold if row.get("trial_id")}
-    core_hidden_gold_ids = {str(row.get("trial_id")) for row in core_hidden_gold if row.get("trial_id")}
-    excluded_d_groups = {str(row.get("probe_group_id")) for row in excluded if row.get("probe_group_id")}
+    core_prompt_ids = {
+        str(row.get("probe_id")) for row in core_prompts if row.get("probe_id")
+    }
+    core_trial_ids = {
+        str(row.get("trial_id")) for row in core_trials if row.get("trial_id")
+    }
+    core_gold_ids = {
+        str(row.get("trial_id")) for row in core_gold if row.get("trial_id")
+    }
+    core_hidden_gold_ids = {
+        str(row.get("trial_id")) for row in core_hidden_gold if row.get("trial_id")
+    }
+    excluded_d_groups = {
+        str(row.get("probe_group_id")) for row in excluded if row.get("probe_group_id")
+    }
     diagnostic_adjudicated_groups = adjudicated_extended_groups(diagnostic_hidden_gold)
 
     if core_prompt_ids != expected_prompt_ids:
@@ -223,14 +245,23 @@ def validate_leaderboard_core(annotation_root: Path, benchmark_root: Path) -> di
     ]:
         duplicates = duplicate_ids(rows, id_field)
         if duplicates:
-            issues.append({"code": "duplicate_core_ids", "file": name, "ids": duplicates[:20], "count": len(duplicates)})
+            issues.append(
+                {
+                    "code": "duplicate_core_ids",
+                    "file": name,
+                    "ids": duplicates[:20],
+                    "count": len(duplicates),
+                }
+            )
 
     if excluded_d_groups != expected_excluded_d_groups:
         issues.append(
             {
                 "code": "excluded_d_groups_mismatch",
                 "missing": sorted(expected_excluded_d_groups - excluded_d_groups)[:20],
-                "unexpected": sorted(excluded_d_groups - expected_excluded_d_groups)[:20],
+                "unexpected": sorted(excluded_d_groups - expected_excluded_d_groups)[
+                    :20
+                ],
                 "missing_count": len(expected_excluded_d_groups - excluded_d_groups),
                 "unexpected_count": len(excluded_d_groups - expected_excluded_d_groups),
             }
@@ -240,10 +271,18 @@ def validate_leaderboard_core(annotation_root: Path, benchmark_root: Path) -> di
         issues.append(
             {
                 "code": "diagnostic_adjudication_coverage_mismatch",
-                "missing": sorted(expected_excluded_d_groups - diagnostic_adjudicated_groups)[:20],
-                "unexpected": sorted(diagnostic_adjudicated_groups - expected_excluded_d_groups)[:20],
-                "missing_count": len(expected_excluded_d_groups - diagnostic_adjudicated_groups),
-                "unexpected_count": len(diagnostic_adjudicated_groups - expected_excluded_d_groups),
+                "missing": sorted(
+                    expected_excluded_d_groups - diagnostic_adjudicated_groups
+                )[:20],
+                "unexpected": sorted(
+                    diagnostic_adjudicated_groups - expected_excluded_d_groups
+                )[:20],
+                "missing_count": len(
+                    expected_excluded_d_groups - diagnostic_adjudicated_groups
+                ),
+                "unexpected_count": len(
+                    diagnostic_adjudicated_groups - expected_excluded_d_groups
+                ),
             }
         )
 
@@ -254,7 +293,9 @@ def validate_leaderboard_core(annotation_root: Path, benchmark_root: Path) -> di
         "promotion_requirements",
     }
     for row in excluded:
-        missing = sorted(field for field in required_excluded_fields if not row.get(field))
+        missing = sorted(
+            field for field in required_excluded_fields if not row.get(field)
+        )
         if missing:
             issues.append(
                 {
@@ -265,7 +306,10 @@ def validate_leaderboard_core(annotation_root: Path, benchmark_root: Path) -> di
             )
 
     for row in core_prompts:
-        if row.get("probe_type") == D_PROBE_TYPE and row.get("probe_group_id") not in grounded_d_groups:
+        if (
+            row.get("probe_type") == D_PROBE_TYPE
+            and row.get("probe_group_id") not in grounded_d_groups
+        ):
             issues.append(
                 {
                     "code": "ungrounded_d_in_core_prompts",
@@ -292,7 +336,10 @@ def validate_leaderboard_core(annotation_root: Path, benchmark_root: Path) -> di
                 break
 
     for row in core_trials:
-        if row.get("probe_type") == D_PROBE_TYPE and row.get("probe_group_id") not in grounded_d_groups:
+        if (
+            row.get("probe_type") == D_PROBE_TYPE
+            and row.get("probe_group_id") not in grounded_d_groups
+        ):
             issues.append(
                 {
                     "code": "ungrounded_d_in_core_trials",
@@ -310,7 +357,13 @@ def validate_leaderboard_core(annotation_root: Path, benchmark_root: Path) -> di
     ]:
         leak_hits.extend(public_leak_hits(path))
     if leak_hits:
-        issues.append({"code": "core_public_leak_pattern", "hits": leak_hits[:50], "hit_count": len(leak_hits)})
+        issues.append(
+            {
+                "code": "core_public_leak_pattern",
+                "hits": leak_hits[:50],
+                "hit_count": len(leak_hits),
+            }
+        )
 
     summary: dict[str, Any] = {}
     summary_path = core_root / "summary.json"
@@ -342,12 +395,16 @@ def validate_leaderboard_core(annotation_root: Path, benchmark_root: Path) -> di
         "excluded_D_ungrounded": len(expected_excluded_d_groups),
         "core_excluded_adjudicated": len(excluded_d_groups),
         "diagnostic_adjudicated": len(diagnostic_adjudicated_groups),
-        "summary_source_pass_matches_current": not any(issue["code"] == "summary_source_pass_mismatch" for issue in issues),
+        "summary_source_pass_matches_current": not any(
+            issue["code"] == "summary_source_pass_mismatch" for issue in issues
+        ),
     }
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Validate GooseOmni leaderboard-core split.")
+    parser = argparse.ArgumentParser(
+        description="Validate GooseOmni leaderboard-core split."
+    )
     parser.add_argument("--annotation-root", type=Path, required=True)
     parser.add_argument("--benchmark-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, default=None)

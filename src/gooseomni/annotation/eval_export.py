@@ -29,7 +29,8 @@ class EventAlignedExportConfig:
 def export_event_aligned_omni_eval(config: EventAlignedExportConfig) -> dict[str, int]:
     trials = _load_json_list(config.trials_path)
     global_events = {
-        item["global_event_id"]: item for item in _load_json_list(config.global_events_path)
+        item["global_event_id"]: item
+        for item in _load_json_list(config.global_events_path)
     }
     offsets = load_sync_offsets(config.sync_offsets_path)
     selected_trials = trials[: config.limit] if config.limit is not None else trials
@@ -225,7 +226,11 @@ def _aligned_window(
     event_end = max(float(item["end_sec"]) for item in events)
     start = max(0.0, event_start - max(0.0, pre_context_sec))
     end = event_end + max(0.0, post_context_sec)
-    if max_duration_sec is not None and max_duration_sec > 0 and end - start > max_duration_sec:
+    if (
+        max_duration_sec is not None
+        and max_duration_sec > 0
+        and end - start > max_duration_sec
+    ):
         start = max(0.0, event_end - max_duration_sec)
         end = start + max_duration_sec
     return start, end
@@ -256,12 +261,14 @@ def _metadata(
         "sync_raw_start_sec": offset_sec,
         "aligned_window_start_sec": aligned_start,
         "aligned_window_end_sec": aligned_end,
-            "raw_window_start_sec": raw_start,
-            "raw_window_end_sec": raw_end,
-            "crop_primary_global_event_id": support_events[0].get("global_event_id"),
-            "supporting_global_event_ids": [
-                item.get("global_event_id") for item in support_events if item.get("global_event_id")
-            ],
+        "raw_window_start_sec": raw_start,
+        "raw_window_end_sec": raw_end,
+        "crop_primary_global_event_id": support_events[0].get("global_event_id"),
+        "supporting_global_event_ids": [
+            item.get("global_event_id")
+            for item in support_events
+            if item.get("global_event_id")
+        ],
         "supporting_events": [
             {
                 "global_event_id": item.get("global_event_id"),
@@ -313,7 +320,9 @@ def _level2_annotation(
     }
 
 
-def _event_qa_sample(annotation: dict[str, Any], metadata: dict[str, Any]) -> dict[str, Any]:
+def _event_qa_sample(
+    annotation: dict[str, Any], metadata: dict[str, Any]
+) -> dict[str, Any]:
     return {
         "id": annotation["video_id"],
         "video_path": annotation["video_file"],

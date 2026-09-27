@@ -1,15 +1,7 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
-
-ROOT = next(
-    parent for parent in Path(__file__).resolve().parents if (parent / "pyproject.toml").exists()
-)
-for path in (ROOT / "src", ROOT):
-    if str(path) not in sys.path:
-        sys.path.insert(0, str(path))
 
 from gooseomni.annotation.backends.qwen_omni import (  # noqa: E402
     QwenBackendConfig,
@@ -21,13 +13,25 @@ from gooseomni.annotation.runner import (  # noqa: E402
     load_manifest,
 )
 
+ROOT = next(
+    parent
+    for parent in Path(__file__).resolve().parents
+    if (parent / "pyproject.toml").exists()
+)
+
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run Qwen3-Omni initial POV annotation.")
-    parser.add_argument("--manifest-path", default="data/processed/clip_manifest.jsonl", type=Path)
+    parser = argparse.ArgumentParser(
+        description="Run Qwen3-Omni initial POV annotation."
+    )
+    parser.add_argument(
+        "--manifest-path", default="data/processed/clip_manifest.jsonl", type=Path
+    )
     parser.add_argument("--output-dir", default="annotations/pov_events", type=Path)
     parser.add_argument("--error-dir", default="annotations/errors", type=Path)
-    parser.add_argument("--backend", default="mock", choices=["mock", "local", "openai"])
+    parser.add_argument(
+        "--backend", default="mock", choices=["mock", "local", "openai"]
+    )
     parser.add_argument("--server-url", default=None)
     parser.add_argument("--base-url", default=None)
     parser.add_argument("--model", default="qwen3-omni")
@@ -71,7 +75,9 @@ def main() -> None:
         resume=args.resume,
         pass_kind=args.pass_kind,
         canonical_players={
-            value.strip() for value in args.canonical_players.split(",") if value.strip()
+            value.strip()
+            for value in args.canonical_players.split(",")
+            if value.strip()
         }
         or None,
         speaker_confidence_min=args.speaker_confidence_min,

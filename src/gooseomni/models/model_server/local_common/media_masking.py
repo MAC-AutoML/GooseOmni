@@ -40,10 +40,11 @@ def create_black_frame_video(input_path: str, output_dir: str) -> str:
     completed = subprocess.run(  # noqa: S603
         cmd,
         check=False,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         text=True,
     )
     if completed.returncode != 0:
-        raise RuntimeError(f"ffmpeg masked-video generation failed: {completed.stderr[-1000:]}")
+        raise RuntimeError(
+            f"ffmpeg masked-video generation failed: {completed.stderr[-1000:]}"
+        )
     return str(target)

@@ -193,8 +193,8 @@ Recommended pre-push checks:
 ```bash
 find src tests tools -type f -name "*.py" ! -name "._*" -print0 | xargs -0 .venv/bin/python -m py_compile
 bash -n configs/slurm/*.slurm configs/slurm/*.sh
-.venv/bin/ruff check src/gooseomni/data_pipeline src/gooseomni/evaluation
-.venv/bin/python -m pytest -q
+uv run --extra media --dev ruff check src/gooseomni/data_pipeline src/gooseomni/evaluation
+uv run --extra media --dev pytest -q
 uv lock --check --offline
 ```
 

@@ -1,4 +1,142 @@
-from .submission_stages import *  # noqa: F401,F403
+import argparse
+import json
+
+from gooseomni.annotation.submission_config import (
+    DOWNSTREAM_ACTIVE_STAGES as DOWNSTREAM_ACTIVE_STAGES,
+)
+from gooseomni.annotation.submission_config import (
+    DOWNSTREAM_CHAIN_STAGE as DOWNSTREAM_CHAIN_STAGE,
+)
+from gooseomni.annotation.submission_config import (
+    DOWNSTREAM_STAGES as DOWNSTREAM_STAGES,
+)
+from gooseomni.annotation.submission_config import (
+    PLAYERS as PLAYERS,
+)
+from gooseomni.annotation.submission_config import (
+    STAGE_ABBREVIATIONS as STAGE_ABBREVIATIONS,
+)
+from gooseomni.annotation.submission_config import (
+    SUBMIT_LIMIT as SUBMIT_LIMIT,
+)
+from gooseomni.annotation.submission_config import (
+    UPSTREAM_ACTIVE_STAGES as UPSTREAM_ACTIVE_STAGES,
+)
+from gooseomni.annotation.submission_config import (
+    UPSTREAM_CHAIN_STAGE as UPSTREAM_CHAIN_STAGE,
+)
+from gooseomni.annotation.submission_config import (
+    UPSTREAM_STAGES as UPSTREAM_STAGES,
+)
+from gooseomni.annotation.submission_config import (
+    SegmentStatus as SegmentStatus,
+)
+from gooseomni.annotation.submission_config import (
+    count_json as count_json,
+)
+from gooseomni.annotation.submission_config import (
+    job_name as job_name,
+)
+from gooseomni.annotation.submission_config import (
+    load_candidate_counts as load_candidate_counts,
+)
+from gooseomni.annotation.submission_config import (
+    load_segments as load_segments,
+)
+from gooseomni.annotation.submission_config import (
+    parse_args as parse_args,
+)
+from gooseomni.annotation.submission_config import (
+    queue_counts as queue_counts,
+)
+from gooseomni.annotation.submission_config import (
+    queue_submit_allowed as queue_submit_allowed,
+)
+from gooseomni.annotation.submission_config import (
+    run_command as run_command,
+)
+from gooseomni.annotation.submission_config import (
+    sbatch_env as sbatch_env,
+)
+from gooseomni.annotation.submission_config import (
+    segment_number as segment_number,
+)
+from gooseomni.annotation.submission_config import (
+    segment_status as segment_status,
+)
+from gooseomni.annotation.submission_config import (
+    selected_segments as selected_segments,
+)
+from gooseomni.annotation.submission_config import (
+    stage_complete as stage_complete,
+)
+from gooseomni.annotation.submission_config import (
+    submit_stage as submit_stage,
+)
+from gooseomni.annotation.submission_config import (
+    valid_json_file as valid_json_file,
+)
+from gooseomni.annotation.submission_queue import (
+    active_batch_dependency as active_batch_dependency,
+)
+from gooseomni.annotation.submission_queue import (
+    active_job_ids as active_job_ids,
+)
+from gooseomni.annotation.submission_queue import (
+    active_job_ids_by_name as active_job_ids_by_name,
+)
+from gooseomni.annotation.submission_queue import (
+    active_job_names as active_job_names,
+)
+from gooseomni.annotation.submission_queue import (
+    active_segment_numbers_for_stage as active_segment_numbers_for_stage,
+)
+from gooseomni.annotation.submission_queue import (
+    active_segment_ranges_for_stage as active_segment_ranges_for_stage,
+)
+from gooseomni.annotation.submission_queue import (
+    chunked as chunked,
+)
+from gooseomni.annotation.submission_queue import (
+    downstream_marker_active as downstream_marker_active,
+)
+from gooseomni.annotation.submission_queue import (
+    has_unsubmitted_ready_downstream as has_unsubmitted_ready_downstream,
+)
+from gooseomni.annotation.submission_queue import (
+    partial_downstream_batches as partial_downstream_batches,
+)
+from gooseomni.annotation.submission_queue import (
+    submit_partial_downstream_batch as submit_partial_downstream_batch,
+)
+from gooseomni.annotation.submission_stages import (
+    downstream_marker_path as downstream_marker_path,
+)
+from gooseomni.annotation.submission_stages import (
+    missing_players as missing_players,
+)
+from gooseomni.annotation.submission_stages import (
+    promote_downstream as promote_downstream,
+)
+from gooseomni.annotation.submission_stages import (
+    refresh_statuses as refresh_statuses,
+)
+from gooseomni.annotation.submission_stages import (
+    repair_downstream as repair_downstream,
+)
+from gooseomni.annotation.submission_stages import (
+    submit_upstream as submit_upstream,
+)
+from gooseomni.annotation.submission_stages import (
+    upstream_range_args as upstream_range_args,
+)
+from gooseomni.annotation.submission_stages import (
+    with_max_jobs as with_max_jobs,
+)
+from gooseomni.annotation.submission_stages import (
+    write_downstream_marker as write_downstream_marker,
+)
+
 
 def submit_balanced(
     args: argparse.Namespace,
@@ -15,7 +153,10 @@ def submit_balanced(
             f"downstream=0 repair=0 upstream=0 multi_worker={multi_worker_status}"
         )
         return
-    if multi_worker_status == "submit_limit" and not args.allow_small_job_fallback_on_submit_limit:
+    if (
+        multi_worker_status == "submit_limit"
+        and not args.allow_small_job_fallback_on_submit_limit
+    ):
         print(
             "submitted_balanced_total=0 "
             "downstream=0 repair=0 upstream=0 "
@@ -45,7 +186,6 @@ def submit_balanced(
     )
 
 
-
 def effective_multi_worker_stage_plan(args: argparse.Namespace) -> str:
     rows = selected_segments(args)
     statuses = refresh_statuses(args, rows)
@@ -67,7 +207,9 @@ def submit_4x2_balanced(args: argparse.Namespace) -> str:
     stage_plan = effective_multi_worker_stage_plan(args)
     env = {
         "DATASET_ROOT": args.dataset_root.as_posix(),
-        "SEGMENTS_JSONL": (args.segments_jsonl or (args.dataset_root / "segments.jsonl")).as_posix(),
+        "SEGMENTS_JSONL": (
+            args.segments_jsonl or (args.dataset_root / "segments.jsonl")
+        ).as_posix(),
         "ANNOTATION_ROOT": args.annotation_root.as_posix(),
         "GAME_ID": args.game_id,
         "WORKERS": str(args.multi_worker_workers),
@@ -128,7 +270,9 @@ def export_benchmark(args: argparse.Namespace) -> None:
     )
 
 
-def print_status(rows: list[tuple[int, str]], statuses: dict[str, SegmentStatus]) -> None:
+def print_status(
+    rows: list[tuple[int, str]], statuses: dict[str, SegmentStatus]
+) -> None:
     totals = {
         "upstream_complete": 0,
         "global_complete": 0,

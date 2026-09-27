@@ -1,35 +1,41 @@
-#!/usr/bin/env python3
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import csv
 import subprocess
-import sys
 from datetime import datetime
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 from gooseomni.models.model_server.clients import CLIENTS
+
+#!/usr/bin/env python3
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run smoke tests for all models in batch")
-    parser.add_argument("--max-samples", type=int, default=1, help="Number of test samples per model, default 1")
-    parser.add_argument("--server-timeout", type=int, default=900, help="Timeout in seconds for local server readiness")
-    parser.add_argument("--test-timeout", type=int, default=1200, help="Timeout in seconds for each single-model test")
+    parser = argparse.ArgumentParser(
+        description="Run smoke tests for all models in batch"
+    )
+    parser.add_argument(
+        "--max-samples",
+        type=int,
+        default=1,
+        help="Number of test samples per model, default 1",
+    )
+    parser.add_argument(
+        "--server-timeout",
+        type=int,
+        default=900,
+        help="Timeout in seconds for local server readiness",
+    )
+    parser.add_argument(
+        "--test-timeout",
+        type=int,
+        default=1200,
+        help="Timeout in seconds for each single-model test",
+    )
     return parser.parse_args()
 
 
@@ -72,7 +78,10 @@ def main() -> None:
             )
 
             model_log = out_dir / f"{model}.log"
-            model_log.write_text((proc.stdout or "") + ("\n" + proc.stderr if proc.stderr else ""), encoding="utf-8")
+            model_log.write_text(
+                (proc.stdout or "") + ("\n" + proc.stderr if proc.stderr else ""),
+                encoding="utf-8",
+            )
 
             if proc.returncode == 0:
                 status = "PASS"

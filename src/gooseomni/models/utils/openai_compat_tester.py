@@ -28,10 +28,20 @@ class OpenAICompatTester:
         api_key: str | None = None,
     ) -> None:
         self.model_name = model_name
-        self.base_url = api_base or os.getenv("OPENAI_API_BASE") or CONFIG.api("openai").get("base_url")
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY") or CONFIG.api("openai").get("api_key")
+        self.base_url = (
+            api_base
+            or os.getenv("OPENAI_API_BASE")
+            or CONFIG.api("openai").get("base_url")
+        )
+        self.api_key = (
+            api_key
+            or os.getenv("OPENAI_API_KEY")
+            or CONFIG.api("openai").get("api_key")
+        )
         if not self.base_url or not self.api_key:
-            raise ValueError("Missing OpenAI API base_url or api_key. Check .env or configs/gooseomni.yaml.")
+            raise ValueError(
+                "Missing OpenAI API base_url or api_key. Check .env or configs/gooseomni.yaml."
+            )
         self.logger = logging.getLogger(f"openai_compat_tester.{model_name}")
         if not self.logger.handlers:
             model_log_dir = PATHS.results_logs / model_name
@@ -71,8 +81,8 @@ class OpenAICompatTester:
 
             frame = cv2.resize(frame, (128, 128))
             quality = max(10, min(95, int(jpeg_quality)))
-            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, quality])
-            frames_base64.append(base64.b64encode(buffer).decode('utf-8'))
+            _, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, quality])
+            frames_base64.append(base64.b64encode(buffer).decode("utf-8"))
 
             if max_frames is not None and len(frames_base64) >= max_frames:
                 break
@@ -130,13 +140,17 @@ class OpenAICompatTester:
 
         raw_api_retries = os.getenv("GOOSEOMNI_API_MAX_RETRIES")
         if raw_api_retries is None:
-            default_retries = 2 if self._is_gemini_model() else CONFIG.runtime("max_retries", 5)
+            default_retries = (
+                2 if self._is_gemini_model() else CONFIG.runtime("max_retries", 5)
+            )
             raw_api_retries = CONFIG.runtime("api_max_retries", default_retries)
         api_max_retries = int(raw_api_retries or 1)
 
         raw_api_retry_delay = os.getenv("GOOSEOMNI_API_RETRY_DELAY")
         if raw_api_retry_delay is None:
-            raw_api_retry_delay = CONFIG.runtime("api_retry_delay", CONFIG.runtime("request_delay", 1.0))
+            raw_api_retry_delay = CONFIG.runtime(
+                "api_retry_delay", CONFIG.runtime("request_delay", 1.0)
+            )
         api_retry_delay = float(raw_api_retry_delay or 1.0)
 
         raw_request_timeout = os.getenv("GOOSEOMNI_API_REQUEST_TIMEOUT")
@@ -219,7 +233,11 @@ class OpenAICompatTester:
                         )
                     # 400 often means payload too large or format edge cases:
                     # degrade JPEG quality only, keep frame count unchanged.
-                    if response.status_code == 400 and include_images and jpeg_quality_try > 15:
+                    if (
+                        response.status_code == 400
+                        and include_images
+                        and jpeg_quality_try > 15
+                    ):
                         jpeg_quality_try = max(15, int(jpeg_quality_try * 0.7))
                         self.logger.warning(
                             "400 for %s, reduce jpeg quality to %s (keep frame count) and retry (attempt %s/%s). body=%s",
@@ -246,7 +264,9 @@ class OpenAICompatTester:
                 response_content = message.get("content", "")
                 if isinstance(response_content, list):
                     response_content = " ".join(
-                        str(x.get("text", "")) for x in response_content if isinstance(x, dict)
+                        str(x.get("text", ""))
+                        for x in response_content
+                        if isinstance(x, dict)
                     )
                 return str(response_content or "")
             except GeminiSafetyBlockedError:
@@ -264,7 +284,9 @@ class OpenAICompatTester:
                     break
                 time.sleep(min(60.0, api_retry_delay * (2 ** (attempt - 1))))
 
-        raise RuntimeError(f"OpenAI-compatible API failed after retries: model={self.model_name}, error={last_error}")
+        raise RuntimeError(
+            f"OpenAI-compatible API failed after retries: model={self.model_name}, error={last_error}"
+        )
 
     def _is_gemini_safety_blocked(self, message: str) -> bool:
         model_name = self.model_name.lower()

@@ -102,8 +102,14 @@ def create_timestamp_contact_sheet(
             label = f"ABS {global_start_sec + source_sec:.2f}s"
             cv2.rectangle(frame, (4, 4), (210, 38), (0, 0, 0), -1)
             cv2.putText(
-                frame, label, (10, 29), cv2.FONT_HERSHEY_SIMPLEX,
-                0.65, (255, 255, 255), 2, cv2.LINE_AA,
+                frame,
+                label,
+                (10, 29),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.65,
+                (255, 255, 255),
+                2,
+                cv2.LINE_AA,
             )
             frames.append(frame)
     finally:

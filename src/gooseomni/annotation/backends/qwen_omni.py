@@ -14,8 +14,7 @@ from gooseomni.models.utils.omni_http_client import OmniHttpClient
 
 
 class ModelBackend(Protocol):
-    def generate(self, prompt: str, video_path: str | None = None) -> str:
-        ...
+    def generate(self, prompt: str, video_path: str | None = None) -> str: ...
 
 
 @dataclass(frozen=True)
@@ -34,11 +33,11 @@ class MockQwenOmniBackend:
         if "raw_start_sec" in prompt and "第一局正式游戏开始" in prompt:
             return (
                 "{"
-                "\"game_id\":\"mock_game\","
-                "\"player_id\":\"mock_player\","
-                "\"raw_start_sec\":0.0,"
-                "\"evidence\":\"mock sync offset\","
-                "\"confidence\":0.1"
+                '"game_id":"mock_game",'
+                '"player_id":"mock_player",'
+                '"raw_start_sec":0.0,'
+                '"evidence":"mock sync offset",'
+                '"confidence":0.1'
                 "}"
             )
         clip_id = Path(video_path).stem if video_path else "mock_clip"
@@ -50,18 +49,18 @@ class MockQwenOmniBackend:
         return (
             "["
             "{"
-            f"\"clip_id\":\"{clip_id}\","
-            f"\"game_id\":\"{game_id}\","
-            f"\"player_id\":\"{player_id}\","
-            f"\"start_sec\":{start_sec},"
-            f"\"end_sec\":{end_sec},"
-            "\"event_type\":\"mock_observation\","
-            "\"description\":\"Mock backend placeholder event.\","
-            "\"visible_players\":[],"
-            "\"mentioned_players\":[],"
-            "\"location\":null,"
-            "\"confidence\":0.1,"
-            "\"evidence\":\"mock response\""
+            f'"clip_id":"{clip_id}",'
+            f'"game_id":"{game_id}",'
+            f'"player_id":"{player_id}",'
+            f'"start_sec":{start_sec},'
+            f'"end_sec":{end_sec},'
+            '"event_type":"mock_observation",'
+            '"description":"Mock backend placeholder event.",'
+            '"visible_players":[],'
+            '"mentioned_players":[],'
+            '"location":null,'
+            '"confidence":0.1,'
+            '"evidence":"mock response"'
             "}"
             "]"
         )
@@ -83,7 +82,9 @@ class LocalQwenOmniServerBackend:
         return self._generate_once(prompt, video_path)
 
     def _generate_once(self, prompt: str, media_path: str) -> str:
-        match = re.search(r"_(-?\d+(?:\.\d+)?)_(-?\d+(?:\.\d+)?)$", Path(media_path).stem)
+        match = re.search(
+            r"_(-?\d+(?:\.\d+)?)_(-?\d+(?:\.\d+)?)$", Path(media_path).stem
+        )
         media_start_sec = float(match.group(1)) if match else None
         answer = self.client.call_api(
             media_path,
@@ -105,9 +106,7 @@ class LocalQwenOmniServerBackend:
         rows: list[dict] = []
         with tempfile.TemporaryDirectory(prefix="gooseomni-audio-") as temp_dir:
             for start_sec, end_sec in _audio_windows(*window, chunk_sec):
-                output = Path(temp_dir) / (
-                    f"audio_{start_sec:.3f}_{end_sec:.3f}.wav"
-                )
+                output = Path(temp_dir) / (f"audio_{start_sec:.3f}_{end_sec:.3f}.wav")
                 _extract_audio_chunk(
                     Path(video_path),
                     output,
@@ -135,9 +134,7 @@ class LocalQwenOmniServerBackend:
         rows: list[dict] = []
         with tempfile.TemporaryDirectory(prefix="gooseomni-visual-") as temp_dir:
             for start_sec, end_sec in _audio_windows(*window, chunk_sec):
-                output = Path(temp_dir) / (
-                    f"video_{start_sec:.3f}_{end_sec:.3f}.mp4"
-                )
+                output = Path(temp_dir) / (f"video_{start_sec:.3f}_{end_sec:.3f}.mp4")
                 _extract_video_chunk(
                     Path(video_path),
                     output,
@@ -261,7 +258,9 @@ class OpenAICompatibleBackend:
 
         api_key = os.getenv(config.api_key_env)
         if not api_key:
-            raise ValueError(f"Missing API key in environment variable {config.api_key_env}")
+            raise ValueError(
+                f"Missing API key in environment variable {config.api_key_env}"
+            )
         self.model = config.model
         self.client = OpenAI(api_key=api_key, base_url=config.base_url)
 

@@ -16,7 +16,9 @@ def load_pov_event_files(input_dir: Path) -> list[dict[str, Any]]:
     return records
 
 
-def build_meeting_utterances(pov_events_dir: Path, output_path: Path) -> list[Utterance]:
+def build_meeting_utterances(
+    pov_events_dir: Path, output_path: Path
+) -> list[Utterance]:
     utterances: list[Utterance] = []
     for event in load_pov_event_files(pov_events_dir):
         text = event.get("description", "")
@@ -40,7 +42,9 @@ def build_meeting_utterances(pov_events_dir: Path, output_path: Path) -> list[Ut
     return utterances
 
 
-def build_information_states(pov_events_dir: Path, output_path: Path) -> list[InformationState]:
+def build_information_states(
+    pov_events_dir: Path, output_path: Path
+) -> list[InformationState]:
     grouped: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for event in load_pov_event_files(pov_events_dir):
         grouped[(event["game_id"], event["player_id"])].append(event)
@@ -57,7 +61,8 @@ def build_information_states(pov_events_dir: Path, output_path: Path) -> list[In
                 private_observations=[item["description"] for item in events],
                 confidence=min(
                     1.0,
-                    sum(item.get("confidence", 0.0) for item in events) / max(1, len(events)),
+                    sum(item.get("confidence", 0.0) for item in events)
+                    / max(1, len(events)),
                 ),
             )
         )
@@ -68,7 +73,7 @@ def build_information_states(pov_events_dir: Path, output_path: Path) -> list[In
 def merge_global_events(pov_events_dir: Path, output_path: Path) -> list[GlobalEvent]:
     events = load_pov_event_files(pov_events_dir)
     global_events: list[GlobalEvent] = []
-    for index, event in enumerate(events):
+    for _index, event in enumerate(events):
         global_events.append(
             GlobalEvent(
                 game_id=event["game_id"],
@@ -77,7 +82,10 @@ def merge_global_events(pov_events_dir: Path, output_path: Path) -> list[GlobalE
                 event_type=event["event_type"],
                 description=event["description"],
                 involved_players=sorted(
-                    set(event.get("visible_players", []) + event.get("mentioned_players", []))
+                    set(
+                        event.get("visible_players", [])
+                        + event.get("mentioned_players", [])
+                    )
                 ),
                 source_clip_ids=[event["clip_id"]],
                 source_player_ids=[event["player_id"]],
@@ -112,7 +120,9 @@ def build_candidate_trials(
             player_events,
             {"audio_cue", "meeting", "role_clue", "body_report", "kill", "encounter"},
         )
-        intent_events = _events_by_type(player_events, {"accusation", "defense", "vote"})
+        intent_events = _events_by_type(
+            player_events, {"accusation", "defense", "vote"}
+        )
 
         trials.append(
             _make_trial(
@@ -153,7 +163,9 @@ def build_candidate_trials(
                         for item in hidden_events[1:4]
                         if item.get("description")
                     ],
-                    confidence=min(state.get("confidence", 0.0), target.get("confidence", 0.0)),
+                    confidence=min(
+                        state.get("confidence", 0.0), target.get("confidence", 0.0)
+                    ),
                 )
             )
 
@@ -235,7 +247,9 @@ def _make_trial(
         answer=_short_text(answer),
         distractors=_unique_texts(distractors or [])[:3],
         supporting_global_event_ids=[
-            item.get("global_event_id", "") for item in supporting_events if item.get("global_event_id")
+            item.get("global_event_id", "")
+            for item in supporting_events
+            if item.get("global_event_id")
         ],
         supporting_information_state_ids=[state["player_id"]],
         difficulty="auto_initial",

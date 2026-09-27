@@ -1,5 +1,15 @@
-from .schema_benchmark import *  # noqa: F401,F403
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from gooseomni.benchmark.schema_benchmark import (
+    ClaimTruthStatus,
+    GoldSource,
+    VisibilityLabel,
+)
+
 from .schema_events import _validate_player
+
 
 class OracleWorldEvent(BaseModel):
     world_event_id: str

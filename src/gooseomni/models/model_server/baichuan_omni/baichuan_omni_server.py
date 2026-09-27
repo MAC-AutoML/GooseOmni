@@ -10,17 +10,16 @@ from pathlib import Path
 
 from flask import Flask, jsonify, request
 
+from gooseomni.config.settings import CONFIG
+from gooseomni.models.model_server.local_common.gpu_visibility import (
+    configure_cuda_visible_devices,
+)
+from gooseomni.models.model_server.local_common.http import parse_infer_request
+
 ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 BAICHUAN_ROOT = Path(__file__).resolve().parent / "baichuan_omni_lib"
-if str(BAICHUAN_ROOT) not in sys.path:
-    sys.path.insert(0, str(BAICHUAN_ROOT))
 
-from gooseomni.config.settings import CONFIG
-from gooseomni.models.model_server.local_common.gpu_visibility import configure_cuda_visible_devices
-from gooseomni.models.model_server.local_common.http import parse_infer_request
 
 warnings.filterwarnings("ignore")
 
@@ -28,12 +27,16 @@ app = Flask(__name__)
 
 # Set GPU visibility before importing torch
 PHYSICAL_GPUS = configure_cuda_visible_devices(
-    CONFIG.model("baichuan_omni_1_5").get("gpu_ids", []) or CONFIG.runtime("gpu_ids", [])
+    CONFIG.model("baichuan_omni_1_5").get("gpu_ids", [])
+    or CONFIG.runtime("gpu_ids", [])
 )
 
 os.environ.setdefault("BAICHUAN_OMNI_DISABLE_AUDIO", "0")
 
-MODEL_PATH = CONFIG.model("baichuan_omni_1_5").get("model_path") or "/publicssd/xty/models/Baichuan-Omni-1.5"
+MODEL_PATH = (
+    CONFIG.model("baichuan_omni_1_5").get("model_path")
+    or "/publicssd/xty/models/Baichuan-Omni-1.5"
+)
 MAX_NEW_TOKENS = CONFIG.model("baichuan_omni_1_5").get("max_tokens", 256)
 TEMPERATURE = CONFIG.model("baichuan_omni_1_5").get("temperature", 0.3)
 TOP_P = 1.0
@@ -112,18 +115,21 @@ def load_model():
         return
 
     print("[baichuan_omni] loading: start", flush=True)
-    import torch
     import faulthandler
+
+    import torch
     from transformers import Qwen2TokenizerFast
     from transformers.utils import logging as hf_logging
 
     if not torch.cuda.is_available():
-        raise RuntimeError("CUDA is not available. Baichuan-Omni-1.5 only supports GPU inference.")
+        raise RuntimeError(
+            "CUDA is not available. Baichuan-Omni-1.5 only supports GPU inference."
+        )
 
     hf_logging.set_verbosity_error()
 
     print(
-        f"[baichuan_omni] cuda: available={torch.cuda.is_available()} count={torch.cuda.device_count()} visible={os.getenv('CUDA_VISIBLE_DEVICES','')}",
+        f"[baichuan_omni] cuda: available={torch.cuda.is_available()} count={torch.cuda.device_count()} visible={os.getenv('CUDA_VISIBLE_DEVICES', '')}",
         flush=True,
     )
 
@@ -189,7 +195,9 @@ def _build_prompt(
         parts.append(question.strip())
 
     user_text = "\n\n".join([p for p in parts if p])
-    return f"<B_SYS>{DEFAULT_SYSTEM_PROMPT}<C_Q>{user_text}<audiotext_start_baichuan><C_A>"
+    return (
+        f"<B_SYS>{DEFAULT_SYSTEM_PROMPT}<C_Q>{user_text}<audiotext_start_baichuan><C_A>"
+    )
 
 
 def _move_list_to_device(items, device):
@@ -239,6 +247,7 @@ def run_inference(
     audio_path = _extract_audio(video_path, temp_dir) if use_audio else None
     prompt = _build_prompt(question, video_path, use_video, audio_path, use_audio)
     import time
+
     t0 = time.time()
     ret = model.processor([prompt])
     t1 = time.time()
@@ -246,7 +255,9 @@ def run_inference(
 
     device = model.main_device
     input_ids = ret.input_ids.to(device)
-    attention_mask = ret.attention_mask.to(device) if ret.attention_mask is not None else None
+    attention_mask = (
+        ret.attention_mask.to(device) if ret.attention_mask is not None else None
+    )
     labels = None
     audios = ret.audios.to(device) if ret.audios is not None else None
     images = _move_list_to_device(ret.images, device)
@@ -254,12 +265,23 @@ def run_inference(
 
     patch_nums = ret.patch_nums.to(device) if ret.patch_nums is not None else None
     images_grid = ret.images_grid
-    videos_patch_nums = ret.videos_patch_nums.to(device) if ret.videos_patch_nums is not None else None
+    videos_patch_nums = (
+        ret.videos_patch_nums.to(device) if ret.videos_patch_nums is not None else None
+    )
     videos_grid = ret.videos_grid
-    encoder_length = ret.encoder_length.to(device) if ret.encoder_length is not None else None
-    bridge_length = ret.bridge_length.to(device) if ret.bridge_length is not None else None
+    encoder_length = (
+        ret.encoder_length.to(device) if ret.encoder_length is not None else None
+    )
+    bridge_length = (
+        ret.bridge_length.to(device) if ret.bridge_length is not None else None
+    )
 
-    if str(os.getenv("BAICHUAN_OMNI_FORCE_CHOICE", "1")).strip().lower() in {"1", "true", "yes", "on"}:
+    if str(os.getenv("BAICHUAN_OMNI_FORCE_CHOICE", "1")).strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
         print("[baichuan_omni] logits start", flush=True)
         start = torch.cuda.Event(enable_timing=True)
         end = torch.cuda.Event(enable_timing=True)
@@ -286,7 +308,10 @@ def run_inference(
         print(f"[baichuan_omni] logits ms: {start.elapsed_time(end):.2f}", flush=True)
         logits = outputs.logits[0, -1]
         choice_ids = _build_choice_token_ids(tokenizer)
-        scores = {k: (logits[ids].max().item() if ids else float("-inf")) for k, ids in choice_ids.items()}
+        scores = {
+            k: (logits[ids].max().item() if ids else float("-inf"))
+            for k, ids in choice_ids.items()
+        }
         result = max(scores, key=scores.get)
         del ret, outputs, input_ids, attention_mask, audios, images, videos
     else:
@@ -319,7 +344,9 @@ def run_inference(
         end.record()
         torch.cuda.synchronize()
         print(f"[baichuan_omni] generate ms: {start.elapsed_time(end):.2f}", flush=True)
-        print(f"[baichuan_omni] output shape: {tuple(output.sequences.shape)}", flush=True)
+        print(
+            f"[baichuan_omni] output shape: {tuple(output.sequences.shape)}", flush=True
+        )
 
         output_ids = output.sequences[0]
         input_len = input_ids.shape[-1]
@@ -359,9 +386,7 @@ def analyze_video():
             temp_path = os.path.join(temp_dir, "input.mp4")
             payload.upload.save(temp_path)
 
-        answer = run_inference(
-            temp_path, question, use_video, use_audio, temp_dir
-        )
+        answer = run_inference(temp_path, question, use_video, use_audio, temp_dir)
         return jsonify({"answer": answer})
     except Exception as exc:  # noqa: BLE001
         traceback.print_exc()
@@ -373,8 +398,12 @@ def analyze_video():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default=CONFIG.model("baichuan_omni_1_5").get("host", "0.0.0.0"))
-    parser.add_argument("--port", type=int, default=CONFIG.model("baichuan_omni_1_5").get("port", 5094))
+    parser.add_argument(
+        "--host", default=CONFIG.model("baichuan_omni_1_5").get("host", "0.0.0.0")
+    )
+    parser.add_argument(
+        "--port", type=int, default=CONFIG.model("baichuan_omni_1_5").get("port", 5094)
+    )
     args = parser.parse_args()
 
     load_model()

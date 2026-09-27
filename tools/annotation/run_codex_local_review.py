@@ -10,7 +10,9 @@ from gooseomni.data_pipeline.local_review import (
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Prepare or merge local Codex review shards.")
+    parser = argparse.ArgumentParser(
+        description="Prepare or merge local Codex review shards."
+    )
     actions = parser.add_subparsers(dest="action", required=True)
     prepare = actions.add_parser("prepare")
     prepare.add_argument("--candidates", required=True, type=Path)

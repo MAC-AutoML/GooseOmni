@@ -1,5 +1,13 @@
-from .schema_events import *  # noqa: F401,F403
+from __future__ import annotations
+
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field, field_validator
+
+from gooseomni.benchmark.schema_events import DATASET_NAME
+
 from .schema_events import _validate_player
+
 
 class CandidateTrial(BaseModel):
     dataset: str = DATASET_NAME
@@ -50,7 +58,9 @@ class CandidateTrial(BaseModel):
 class CheckerFinding(BaseModel):
     checker_name: str
     annotation_id: str | None = None
-    verdict: Literal["supported", "partially_supported", "unsupported", "uncertain", "pass", "fail"]
+    verdict: Literal[
+        "supported", "partially_supported", "unsupported", "uncertain", "pass", "fail"
+    ]
     reason: str
     suggested_fix: str | None = None
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
@@ -129,6 +139,14 @@ class AnnotationError(BaseModel):
     prompt: str
 
 
-VisibilityLabel = Literal["direct_visual", "direct_audio", "public_ui", "heard_claim", "not_visible", "post_cutoff", "unknown"]
+VisibilityLabel = Literal[
+    "direct_visual",
+    "direct_audio",
+    "public_ui",
+    "heard_claim",
+    "not_visible",
+    "post_cutoff",
+    "unknown",
+]
 ClaimTruthStatus = Literal["supported", "contradicted", "unverified", "ambiguous"]
 GoldSource = Literal["qwen_weak", "qwen_checked", "model_verified", "human_verified"]

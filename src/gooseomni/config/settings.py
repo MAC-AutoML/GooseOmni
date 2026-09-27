@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import yaml
 from dotenv import load_dotenv
@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from .paths import PATHS
 
 
-def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     for key, value in override.items():
         if isinstance(value, dict) and isinstance(base.get(key), dict):
             base[key] = _deep_merge(base[key], value)
@@ -20,7 +20,7 @@ def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any
     return base
 
 
-def _default_config() -> Dict[str, Any]:
+def _default_config() -> dict[str, Any]:
     return {
         "api": {
             "openai": {"base_url": ""},
@@ -41,7 +41,9 @@ def _default_config() -> Dict[str, Any]:
                 "gpu_ids": [],
             }
         },
-        "prompts": {"answer_format": "Answer ONLY with the option letter (A, B, C, or D). Do not include any other text."},
+        "prompts": {
+            "answer_format": "Answer ONLY with the option letter (A, B, C, or D). Do not include any other text."
+        },
         "benchmark": {
             "level1": {
                 "model": "",
@@ -56,8 +58,7 @@ def _default_config() -> Dict[str, Any]:
                 "max_retries": 5,
                 "retry_delay": 3,
                 "num_workers": 8,
-            }
-            ,
+            },
             "level2": {
                 "model": "",
                 "dataset_path": "",
@@ -91,11 +92,11 @@ def _default_config() -> Dict[str, Any]:
 
 
 class Config:
-    def __init__(self, data: Dict[str, Any]) -> None:
+    def __init__(self, data: dict[str, Any]) -> None:
         self._data = data
 
     @property
-    def data(self) -> Dict[str, Any]:
+    def data(self) -> dict[str, Any]:
         return self._data
 
     def get(self, path: str, default: Any = None) -> Any:
@@ -106,13 +107,13 @@ class Config:
             cur = cur[part]
         return cur
 
-    def api(self, name: str) -> Dict[str, Any]:
+    def api(self, name: str) -> dict[str, Any]:
         return deepcopy(self._data.get("api", {}).get(name, {}))
 
     def runtime(self, key: str, default: Any = None) -> Any:
         return self._data.get("runtime", {}).get(key, default)
 
-    def model(self, name: str) -> Dict[str, Any]:
+    def model(self, name: str) -> dict[str, Any]:
         defaults = deepcopy(self._data.get("models", {}).get("defaults", {}))
         specific = self._data.get("models", {}).get(name, {})
         return _deep_merge(defaults, deepcopy(specific))
@@ -124,7 +125,7 @@ class Config:
         return self.get(f"benchmark.{path}", default)
 
 
-def _apply_env_overrides(config: Dict[str, Any]) -> None:
+def _apply_env_overrides(config: dict[str, Any]) -> None:
     openai_key = os.getenv("OPENAI_API_KEY")
     openai_base = os.getenv("OPENAI_API_BASE")
     if openai_key:
@@ -135,7 +136,9 @@ def _apply_env_overrides(config: Dict[str, Any]) -> None:
     runtime_frame_interval = os.getenv("GOOSEOMNI_RUNTIME_FRAME_INTERVAL_SEC")
     if runtime_frame_interval:
         try:
-            config.setdefault("runtime", {})["frame_interval_sec"] = int(runtime_frame_interval)
+            config.setdefault("runtime", {})["frame_interval_sec"] = int(
+                runtime_frame_interval
+            )
         except ValueError:
             pass
 
@@ -156,9 +159,11 @@ def load_config() -> Config:
     load_dotenv(PATHS.root / ".env")
 
     config = _default_config()
-    config_path = Path(os.getenv("GOOSEOMNI_CONFIG", PATHS.config_dir / "gooseomni.yaml"))
+    config_path = Path(
+        os.getenv("GOOSEOMNI_CONFIG", PATHS.config_dir / "gooseomni.yaml")
+    )
     if config_path.exists():
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             file_config = yaml.safe_load(f) or {}
         config = _deep_merge(config, file_config)
 

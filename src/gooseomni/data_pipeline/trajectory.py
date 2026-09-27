@@ -30,7 +30,9 @@ def normalize_visual_event(row: dict[str, Any]) -> dict[str, Any]:
         **row,
         "event_type": event_type,
         "movement_transition": movement,
-        "visible_players": sorted({str(item) for item in row.get("visible_players", [])}),
+        "visible_players": sorted(
+            {str(item) for item in row.get("visible_players", [])}
+        ),
         "source_pov": str(row["player_id"]),
         "modality": "visual",
     }
@@ -47,7 +49,9 @@ def normalize_audio_event(row: dict[str, Any]) -> dict[str, Any]:
     except (TypeError, ValueError):
         confidence = 0.0
     verified_text = bool(row.get("visual_text_evidence_id"))
-    candidate_ok = speaker is not None and confidence >= 0.85 and bool(row.get("utterance"))
+    candidate_ok = (
+        speaker is not None and confidence >= 0.85 and bool(row.get("utterance"))
+    )
     return {
         **row,
         "event_type": event_type,
@@ -94,8 +98,10 @@ def _can_fuse(
     if row["modality"] == "audio":
         signature = _audio_signature(row)
         return signature is not None and signature == _audio_signature(first)
-    return bool(first.get("public_ui")) and bool(row.get("public_ui")) and (
-        first["event_type"] in PUBLIC_TYPES
+    return (
+        bool(first.get("public_ui"))
+        and bool(row.get("public_ui"))
+        and (first["event_type"] in PUBLIC_TYPES)
     )
 
 
@@ -128,7 +134,8 @@ def fuse_trajectory(
             (
                 item
                 for item in episodes
-                if item["abs_start_sec"] <= float(first["start_sec"])
+                if item["abs_start_sec"]
+                <= float(first["start_sec"])
                 < item["abs_end_sec"]
             ),
             None,
@@ -147,9 +154,8 @@ def fuse_trajectory(
         audio_admissible = bool(grouped_audio) and (
             agreed_audio or visual_text_verified
         )
-        meeting_public = (
-            first.get("phase_type") == "meeting"
-            and any(bool(row.get("meeting_public")) for row in grouped_audio)
+        meeting_public = first.get("phase_type") == "meeting" and any(
+            bool(row.get("meeting_public")) for row in grouped_audio
         )
         heard_by = sorted(
             {str(row["source_pov"]) for row in grouped_audio}

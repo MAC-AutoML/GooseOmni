@@ -10,17 +10,26 @@ from typing import Any
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
 
 
 def load_by_key(path: Path, key: str) -> dict[str, dict[str, Any]]:
@@ -48,11 +57,17 @@ def build_accept_candidates(
         merge = merge_by_source.get(source_id)
         if not merge:
             continue
-        if merge.get("codex_human_merge_decision") != "accept_for_qwen_checked_merge_candidate":
+        if (
+            merge.get("codex_human_merge_decision")
+            != "accept_for_qwen_checked_merge_candidate"
+        ):
             continue
         transcript = merge.get("confirmed_transcript") or {}
         speaker = merge.get("confirmed_speaker") or {}
-        if transcript.get("transcript_match") != "exact" or transcript.get("text_confidence") != "high":
+        if (
+            transcript.get("transcript_match") != "exact"
+            or transcript.get("text_confidence") != "high"
+        ):
             continue
         if speaker.get("speaker_confidence") != "high":
             continue
@@ -93,7 +108,9 @@ def build_accept_candidates(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build strict human-gold accept candidates from qwen_checked meeting-claim drafts.")
+    parser = argparse.ArgumentParser(
+        description="Build strict human-gold accept candidates from qwen_checked meeting-claim drafts."
+    )
     parser.add_argument("--probe-draft-root", type=Path, required=True)
     parser.add_argument("--merge-review-records", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
@@ -105,9 +122,13 @@ def main() -> None:
         args.probe_draft_root / "hidden_gold.qwen_checked_draft.jsonl",
         args.merge_review_records,
     )
-    write_jsonl(args.output_root / "probe_groups.human_gold_accept_candidates.jsonl", groups)
+    write_jsonl(
+        args.output_root / "probe_groups.human_gold_accept_candidates.jsonl", groups
+    )
     write_jsonl(args.output_root / "probes.human_gold_accept_candidates.jsonl", probes)
-    write_jsonl(args.output_root / "hidden_gold.human_gold_accept_candidates.jsonl", hidden)
+    write_jsonl(
+        args.output_root / "hidden_gold.human_gold_accept_candidates.jsonl", hidden
+    )
     probe_type_counts = Counter(row.get("probe_type") for row in probes)
     summary = {
         "ok": True,
