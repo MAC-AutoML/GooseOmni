@@ -28,6 +28,7 @@ from gooseomni.benchmark.schema import (
     Segment,
     Utterance,
 )
+from tools.validate.validate_gooseomni_completion import validate_flat_pov_outputs
 
 
 def _segment_row() -> dict:
@@ -148,6 +149,42 @@ def test_error_output_can_be_saved(tmp_path: Path) -> None:
     assert payload["stage"] == "pov_events"
     assert payload["segment_id"] == segment.segment_id
     assert payload["player_id"] == "Gemini"
+
+
+def test_completion_validator_accepts_flat_pov_layout(tmp_path: Path) -> None:
+    output_root = tmp_path / "annotations" / "pov_events"
+    output_root.mkdir(parents=True)
+    payload = {
+        "clip": {
+            "game_id": "g001",
+            "player_id": "Gemini",
+            "clip_id": "g001_Gemini_0_90",
+            "clip_path": "clips/g001_Gemini_0_90.mp4",
+            "start_sec": 0,
+            "end_sec": 90,
+        },
+        "events": [
+            {
+                "clip_id": "g001_Gemini_0_90",
+                "game_id": "g001",
+                "player_id": "Gemini",
+                "start_sec": 2,
+                "end_sec": 4,
+                "event_type": "movement",
+                "description": "player moves",
+            }
+        ],
+    }
+    (output_root / "g001_Gemini_0_90.json").write_text(
+        json.dumps(payload), encoding="utf-8"
+    )
+    issues: list[dict[str, str]] = []
+
+    summary = validate_flat_pov_outputs(tmp_path / "annotations", "g001", issues)
+
+    assert issues == []
+    assert summary["valid_files"] == 1
+    assert summary["events"] == 1
 
 
 def test_resume_mode_does_not_reannotate(tmp_path: Path) -> None:
