@@ -23,8 +23,7 @@ dist/
 configs/.env
 configs/.env.*
 
-# Local agent/project instructions
-/AGENTS.md
+# Project instructions are versioned so every checkout shares the same workflow rules.
 /docs/local_*.md
 /docs/*_local*.md
 /docs/*_agent*.md
