@@ -11,14 +11,14 @@ from gooseomni.config import PATHS
 
 from .provenance import sha256_file, write_json
 
-COUNT_PATHS = {
-    "public/leaderboard_core/trials.jsonl": 889,
-    "private/leaderboard_core/hidden_gold.jsonl": 889,
-    "public/raw_video_smoke/raw_video_smoke.jsonl": 48,
-    "public/leaderboard_core/probe_groups_public.jsonl": 276,
-    "public/agentic_midgame_prediction/trials.jsonl": 160,
-    "private/agentic_midgame_prediction/hidden_gold.jsonl": 160,
-}
+RELEASE_LINE_COUNT_PATHS = (
+    "public/leaderboard_core/trials.jsonl",
+    "private/leaderboard_core/hidden_gold.jsonl",
+    "public/raw_video_smoke/raw_video_smoke.jsonl",
+    "public/leaderboard_core/probe_groups_public.jsonl",
+    "public/agentic_midgame_prediction/trials.jsonl",
+    "private/agentic_midgame_prediction/hidden_gold.jsonl",
+)
 PRIVATE_MARKERS = ('"hidden_gold":', '"forbidden_event_ids":')
 
 
@@ -158,6 +158,14 @@ def _line_count(path: Path) -> int:
         return sum(1 for _ in handle)
 
 
+def _release_line_counts(root: Path) -> dict[str, int]:
+    return {
+        relative: _line_count(root / relative)
+        for relative in RELEASE_LINE_COUNT_PATHS
+        if (root / relative).is_file()
+    }
+
+
 def _public_leaks(root: Path) -> list[str]:
     hits: list[str] = []
     for path in sorted((root / "public").rglob("*")):
@@ -193,7 +201,7 @@ def build_manifest(root: Path, source_root: Path) -> dict[str, Any]:
         "file_count": len(records),
         "total_bytes": sum(int(row["bytes"]) for row in records),
         "validation": {
-            "line_counts": {path: _line_count(root / path) for path in COUNT_PATHS},
+            "line_counts": _release_line_counts(root),
             "public_file_leak_hits": _public_leaks(root),
         },
         "files": records,
@@ -264,7 +272,9 @@ def validate_release(root: Path, probe_media: bool = True) -> dict[str, Any]:
         return {"ok": False, "issues": ["missing manifest.json"]}
     recorded = json.loads(manifest_path.read_text(encoding="utf-8"))
     actual = build_manifest(root, Path(str(recorded.get("source", "unknown"))))
-    expected_counts = recorded.get("validation", {}).get("line_counts", COUNT_PATHS)
+    expected_counts = recorded.get("validation", {}).get(
+        "line_counts", _release_line_counts(root)
+    )
     if actual["validation"]["line_counts"] != expected_counts:
         issues.append("line counts do not match the recorded release contract")
     if actual["validation"]["public_file_leak_hits"]:
