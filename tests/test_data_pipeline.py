@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from gooseomni.benchmark.decrypto_export import build_decrypto_diagnostics
-from gooseomni.data_pipeline import raw_stages
+from gooseomni.data_pipeline import raw_stages, release_pipeline
 from gooseomni.data_pipeline.config import load_data_config
 from gooseomni.data_pipeline.ledger_seed import build_seed_ledger
 from gooseomni.data_pipeline.local_review import (
@@ -73,6 +73,20 @@ def test_stage_result_hashes_shared_source_once(tmp_path: Path, monkeypatch) -> 
 
     assert result["input_hash"] == result["output_hash"] == "hash"
     assert calls == [output]
+
+
+def test_release_manifest_records_actual_line_counts(tmp_path: Path) -> None:
+    for relative in release_pipeline.RELEASE_LINE_COUNT_PATHS:
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{}\n{}\n", encoding="utf-8")
+
+    manifest = release_pipeline.build_manifest(tmp_path, tmp_path)
+
+    assert set(manifest["validation"]["line_counts"]) == set(
+        release_pipeline.RELEASE_LINE_COUNT_PATHS
+    )
+    assert set(manifest["validation"]["line_counts"].values()) == {2}
 
 
 def test_strict_pilot_uses_new_stage_sequence(tmp_path: Path) -> None:
