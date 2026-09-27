@@ -10,10 +10,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build initial information states.")
-    parser.add_argument("--pov-events-dir", default="annotations/pov_events", type=Path)
+    parser.add_argument("--pov-events-dir", required=True, type=Path)
     parser.add_argument(
         "--output-path",
-        default="data/processed/information_states.json",
+        required=True,
         type=Path,
     )
     return parser.parse_args()

@@ -31,12 +31,6 @@ ANNOTATE_SCRIPTS = {
     "sync": ["tools/build/infer_sync_offsets.py"],
     "split": ["tools/build/split_raw_videos.py"],
     "run": ["tools/annotation/run_qwen_annotation.py"],
-    "postprocess": [
-        "tools/build/build_meeting_utterances.py",
-        "tools/build/build_information_states.py",
-        "tools/build/merge_global_events.py",
-        "tools/build/build_candidate_trials.py",
-    ],
 }
 
 BENCHMARK_SCRIPTS = {

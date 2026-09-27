@@ -19,17 +19,17 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--manifest-path",
-        default="data/processed/clip_manifest_manual_sync_v1.jsonl",
+        default="data/processed/clip_manifest.jsonl",
         type=Path,
     )
     parser.add_argument(
         "--output-dir",
-        default="annotations/round_boundaries_manual_sync_v1",
+        default="annotations/round_boundaries",
         type=Path,
     )
     parser.add_argument(
         "--error-dir",
-        default="annotations/round_boundary_errors_manual_sync_v1",
+        default="annotations/round_boundary_errors",
         type=Path,
     )
     parser.add_argument(

@@ -150,6 +150,11 @@ uv run gooseomni benchmark validate --help
 
 ## 解析与数据契约
 
+初标与融合记录使用 `annotation.schemas`；segment 标注与评测记录使用
+`benchmark.schema`。两者由流水线转换，不能交叉校验。后处理产物归属于
+具体 run 的 `artifacts/fusion/`，旧的全局处理 JSON 和 `annotate postprocess`
+入口已移除；单阶段工具必须显式指定输入和输出路径。
+
 JSON/JSONL 解析集中在 `src/gooseomni/benchmark/io.py` 和 `pipeline_runtime.py`：
 
 - `safe_json_loads` 支持普通 JSON 和 fenced Markdown JSON。

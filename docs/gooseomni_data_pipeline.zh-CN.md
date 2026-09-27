@@ -23,6 +23,20 @@ ingest -> sync -> segment -> qwen_perception -> event_fusion
 
 ## 缓存与真实模型
 
+### 数据契约和产物归属
+
+- `annotation.schemas` 定义 clip 级初标和融合记录，使用 `start_sec/end_sec`、
+  `confidence` 等字段；raw 流水线仍依赖这些模型。
+- `benchmark.schema` 定义 segment 级标注与评测记录，使用 `segment_id`、
+  `cutoff_abs_sec`、`certainty` 等字段。两种记录不能混用 schema 校验。
+- raw 融合结果只归属于具体 run 的 `artifacts/fusion/`；
+  `ledger_seed.build_seed_ledger` 负责将融合记录转换成 oracle ledger。
+- 已删除 `data/processed/` 根目录中无 run 归属的全局事件、信息状态、
+  会议发言及候选题 JSON（包括 `manual_sync_v1` 和 `round2_sync` 版本）。
+  原视频、同步配置、clip manifest 和当前配置引用的缓存继续保留。
+- 不再提供无参数 `annotate postprocess`；单阶段工具必须显式指定路径。
+  完整构建使用上面的 `data build` 命令。
+
 已有数据可在 YAML 的 `cache` 中声明同步、切片、Qwen 感知、oracle ledger 和历史模型裁决。缓存会复制到 run-local 目录并重新计算哈希；正式 benchmark 不直接依赖旧活动目录。
 
 删除 `cache.sync_offsets` 或 `cache.perception` 后，对应阶段会调用真实 Qwen3-Omni。真实感知必须在 Slurm 作业中运行，并提供 `QWEN3_OMNI_SERVER_URL`。模型路径和资源参数见 `docs/qwen3_omni_annotation_pipeline.zh-CN.md`。

@@ -26,6 +26,6 @@ dataset_root: data/gooseomni
 cache:
   sync_offsets: data/processed/sync_offsets.json
   segments: data/gooseomni/segments.json
-  perception: annotations/pov_events_manual_sync_v1
+  perception: annotations/pov_events
   oracle_ledger: annotations/oracle_ledger
   review_benchmark: benchmark/gooseomni_v1

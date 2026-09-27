@@ -17,23 +17,23 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--trials",
-        default="data/processed/candidate_trials_manual_sync_v1.json",
+        required=True,
         type=Path,
     )
     parser.add_argument(
         "--global-events",
-        default="data/processed/global_events_manual_sync_v1.json",
+        required=True,
         type=Path,
     )
     parser.add_argument(
         "--sync-offsets",
-        default="data/processed/sync_offsets_manual_v1.json",
+        required=True,
         type=Path,
     )
     parser.add_argument("--raw-dir", default="data/raw", type=Path)
     parser.add_argument(
         "--output-dir",
-        default="data/level_2_event_aligned_manual_sync_v1",
+        required=True,
         type=Path,
     )
     parser.add_argument("--pre-context-sec", default=8.0, type=float)
