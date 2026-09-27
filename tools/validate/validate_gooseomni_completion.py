@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from gooseomni.annotation.schemas import Clip, POVEvent
 from gooseomni.benchmark.schema import (
     VALID_PLAYERS,
     BeliefState,
@@ -18,6 +19,7 @@ from gooseomni.benchmark.schema import (
     Segment,
     UtteranceAnnotation,
 )
+from gooseomni.data_pipeline.release_pipeline import validate_release
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -258,6 +260,89 @@ def validate_annotation_stage_outputs(
     return {"stage_counts": dict(stage_counts), "segments": segment_summaries}
 
 
+def _is_flat_pov_layout(annotation_root: Path) -> bool:
+    """Detect the current run-local POV layout without guessing from filenames."""
+    pov_root = annotation_root / "pov_events"
+    return pov_root.is_dir() and any(pov_root.glob("*.json"))
+
+
+def validate_flat_pov_outputs(
+    annotation_root: Path,
+    expected_game_id: str,
+    issues: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Validate current ``pov_events/{clip_id}.json`` outputs.
+
+    The current annotation runner stores a clip envelope with ``clip`` and
+    ``events`` keys.  The legacy completion validator expected one file per
+    stage/player under a nested directory, which produced false missing-file
+    errors for current runs.
+    """
+    paths = sorted((annotation_root / "pov_events").glob("*.json"))
+    event_count = 0
+    players: set[str] = set()
+    valid_files = 0
+    for path in paths:
+        try:
+            payload = read_json(path)
+            clip = Clip.model_validate(payload["clip"])
+            events = payload.get("events", [])
+            if not isinstance(events, list):
+                raise ValueError("events must be a list")
+            if clip.game_id != expected_game_id:
+                add_issue(
+                    issues,
+                    "error",
+                    "annotation_game_id_mismatch",
+                    path,
+                    f"expected {expected_game_id}, got {clip.game_id}",
+                )
+            for event in events:
+                parsed = POVEvent.model_validate(event)
+                if parsed.game_id != clip.game_id or parsed.player_id != clip.player_id:
+                    raise ValueError("event identity does not match clip envelope")
+                if parsed.clip_id != clip.clip_id:
+                    raise ValueError("event clip_id does not match clip envelope")
+                if not (
+                    clip.start_sec
+                    <= parsed.start_sec
+                    <= parsed.end_sec
+                    <= clip.end_sec
+                ):
+                    raise ValueError("event time is outside the clip window")
+                event_count += 1
+            players.add(clip.player_id)
+            valid_files += 1
+        except (KeyError, TypeError, ValueError) as exc:
+            add_issue(issues, "error", "pov_output_validation_failed", path, str(exc))
+    return {
+        "layout": "flat_pov",
+        "files": len(paths),
+        "valid_files": valid_files,
+        "events": event_count,
+        "players": sorted(players),
+    }
+
+
+def validate_current_release(
+    args: argparse.Namespace,
+    segments: list[dict[str, Any]],
+    issues: list[dict[str, Any]],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    annotation_summary = validate_flat_pov_outputs(
+        args.annotation_root, args.expected_game_id, issues
+    )
+    report = validate_release(args.benchmark_root, probe_media=False)
+    for message in report["issues"]:
+        add_issue(issues, "error", "benchmark_release_invalid", args.benchmark_root, message)
+    annotation_summary["segment_count"] = len(segments)
+    annotation_summary["benchmark_release_ok"] = report["ok"]
+    return annotation_summary, {
+        "trial_count": report.get("raw_video_rows", 0),
+        "release_validation": report,
+    }
+
+
 def validate_candidate_trials(
     args: argparse.Namespace,
     segments: list[dict[str, Any]],
@@ -420,9 +505,15 @@ def main() -> None:
     args = parse_args()
     issues: list[dict[str, Any]] = []
     segments = validate_segments(args, issues)
-    annotation_summary = validate_annotation_stage_outputs(args, segments, issues)
-    candidate_rows = validate_candidate_trials(args, segments, issues)
-    benchmark_summary = validate_benchmark(args, candidate_rows, issues)
+    if _is_flat_pov_layout(args.annotation_root):
+        annotation_summary, benchmark_summary = validate_current_release(
+            args, segments, issues
+        )
+        candidate_rows: list[dict[str, Any]] = []
+    else:
+        annotation_summary = validate_annotation_stage_outputs(args, segments, issues)
+        candidate_rows = validate_candidate_trials(args, segments, issues)
+        benchmark_summary = validate_benchmark(args, candidate_rows, issues)
     severity_counts = collections.Counter(issue["severity"] for issue in issues)
     issue_code_counts = collections.Counter(issue["code"] for issue in issues)
     payload = {

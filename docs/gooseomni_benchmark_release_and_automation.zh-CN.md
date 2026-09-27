@@ -97,6 +97,15 @@ annotations/belief_states/
 annotations/candidate_trials/
 ```
 
+当前 `data build` 产生的 run-local 初标使用扁平布局：
+
+```text
+runs/<run_name>/annotations/pov_events/{clip_id}.json
+```
+
+每个文件包含 `clip` 和 `events` 两个字段。完整性校验器会自动识别这种布局，
+并同时校验 clip、事件 schema、玩家和时间窗口；旧的层级布局仍保持兼容。
+
 不建议公开发布：
 
 ```text
@@ -188,6 +197,17 @@ candidate rows 覆盖全部 segment
 benchmark rows = candidate rows * input_conditions 数量
 human_review_queue 已生成
 SHA256SUMS 已生成
+```
+
+当前 raw release 的最小复现校验命令：
+
+```bash
+uv run python tools/validate/validate_gooseomni_completion.py \
+  --dataset-root data/gooseomni \
+  --annotation-root runs/gooseomni_v2_raw_release/annotations \
+  --benchmark-root benchmark/gooseomni_v2_raw_release \
+  --output runs/gooseomni_v2_raw_release/completion_validation.json \
+  --fail-on-incomplete
 ```
 
 ## 新一组多视角视频的自动化流程
@@ -363,4 +383,3 @@ fully human verified
 ```
 
 除非后续真的完成了人工复核。
-
