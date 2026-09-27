@@ -50,7 +50,10 @@ def materialize_aligned_clips(
     records: list[dict[str, Any]] = []
     created = skipped = 0
     for game in games:
-        durations = {player.player_id: probe_duration(player.video_path) for player in game.players}
+        durations = {
+            player.player_id: probe_duration(player.video_path)
+            for player in game.players
+        }
         global_end = min(
             (
                 durations[player.player_id]
@@ -68,7 +71,9 @@ def materialize_aligned_clips(
         )
         while start < global_end:
             end = min(start + window_sec, global_end)
-            if any(left < end and right > start for left, right in game.excluded_ranges):
+            if any(
+                left < end and right > start for left, right in game.excluded_ranges
+            ):
                 start = end
                 continue
             for player in game.players:

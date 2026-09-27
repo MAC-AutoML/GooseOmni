@@ -1,30 +1,15 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import fcntl
 import json
-import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 from gooseomni.benchmark.backends import create_backend
-from gooseomni.benchmark.io import load_segments_jsonl, write_jsonl
+from gooseomni.benchmark.io import load_segments_jsonl
 from gooseomni.benchmark.pipeline import (
-    annotation_path,
     annotate_text_with_segment_context,
+    annotation_path,
     append_review_items,
     filter_segments,
     load_json_if_exists,
@@ -36,7 +21,9 @@ from gooseomni.benchmark.pipeline import (
     save_error,
 )
 from gooseomni.benchmark.prompts import candidate_trial_prompt
-from gooseomni.benchmark.schema import CandidateTrial, VALID_PLAYERS
+from gooseomni.benchmark.schema import VALID_PLAYERS, CandidateTrial
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def parse_args() -> argparse.Namespace:
@@ -59,23 +46,30 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _load_global_events(dataset_root: Path, output_root_path: Path | None, segment: object) -> list[dict]:
+def _load_global_events(
+    dataset_root: Path, output_root_path: Path | None, segment: object
+) -> list[dict]:
     payload = load_json_if_exists(
-        annotation_path(dataset_root, "global_events", segment, annotation_root=output_root_path)
+        annotation_path(
+            dataset_root, "global_events", segment, annotation_root=output_root_path
+        )
     )
     return [] if payload is None else payload.get("global_events", [])
 
 
-def _load_information_states(dataset_root: Path, output_root_path: Path | None, segment: object) -> list[dict]:
+def _load_information_states(
+    dataset_root: Path, output_root_path: Path | None, segment: object
+) -> list[dict]:
     rows: list[dict] = []
     for player_id in VALID_PLAYERS:
         payload = load_json_if_exists(
-            annotation_path(dataset_root, "information_states", segment, player_id, output_root_path)
+            annotation_path(
+                dataset_root, "information_states", segment, player_id, output_root_path
+            )
         )
         if payload is not None:
             rows.append(payload)
     return rows
-
 
 
 def _candidate_segment_exists(output_path: Path, segment_id: str) -> bool:
@@ -92,7 +86,9 @@ def _candidate_segment_exists(output_path: Path, segment_id: str) -> bool:
     return False
 
 
-def _append_candidate_trials_once(output_path: Path, segment_id: str, trials: list[CandidateTrial]) -> bool:
+def _append_candidate_trials_once(
+    output_path: Path, segment_id: str, trials: list[CandidateTrial]
+) -> bool:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     lock_path = output_path.with_name(f".{output_path.name}.lock")
     with lock_path.open("w", encoding="utf-8") as lock_handle:
@@ -101,13 +97,24 @@ def _append_candidate_trials_once(output_path: Path, segment_id: str, trials: li
             return False
         with output_path.open("a", encoding="utf-8") as handle:
             for trial in trials:
-                handle.write(json.dumps(trial.model_dump(), ensure_ascii=False, separators=(",", ":")))
+                handle.write(
+                    json.dumps(
+                        trial.model_dump(), ensure_ascii=False, separators=(",", ":")
+                    )
+                )
                 handle.write("\n")
     return True
 
+
 def main() -> None:
     args = parse_args()
-    backend = create_backend(args.backend, model=args.model, api_key_env=args.api_key_env, base_url=args.base_url, server_url=args.server_url)
+    backend = create_backend(
+        args.backend,
+        model=args.model,
+        api_key_env=args.api_key_env,
+        base_url=args.base_url,
+        server_url=args.server_url,
+    )
     root = args.output_root or output_root(args.dataset_root)
     output_path = root / "candidate_trials" / "g001_candidate_trials.jsonl"
     if output_path.exists() and args.overwrite:
@@ -134,22 +141,32 @@ def main() -> None:
         )
         raw_response = ""
         try:
-            raw_response = annotate_text_with_segment_context(backend, prompt, args.dataset_root, segment)
+            raw_response = annotate_text_with_segment_context(
+                backend, prompt, args.dataset_root, segment
+            )
             try:
                 parsed_items = parse_json_array(raw_response)
             except Exception as first_error:  # noqa: BLE001
                 prompt = retry_prompt_for_compact_json(prompt, max_items=5)
-                retry_response = annotate_text_with_segment_context(backend, prompt, args.dataset_root, segment)
+                retry_response = annotate_text_with_segment_context(
+                    backend, prompt, args.dataset_root, segment
+                )
                 try:
                     parsed_items = parse_json_array(retry_response)
                     raw_response = retry_response
                 except Exception as second_error:  # noqa: BLE001
-                    recovered = parse_partial_json_array_objects(retry_response, max_items=5)
+                    recovered = parse_partial_json_array_objects(
+                        retry_response, max_items=5
+                    )
                     if not recovered:
-                        recovered = parse_partial_json_array_objects(raw_response, max_items=5)
+                        recovered = parse_partial_json_array_objects(
+                            raw_response, max_items=5
+                        )
                     if recovered:
                         parsed_items = recovered
-                        raw_response = retry_response if "{" in retry_response else raw_response
+                        raw_response = (
+                            retry_response if "{" in retry_response else raw_response
+                        )
                     else:
                         raw_response = (
                             "FIRST_ERROR:\n"
@@ -163,10 +180,14 @@ def main() -> None:
                         )
                         raise ValueError(raw_response) from second_error
             trials = [
-                CandidateTrial.model_validate(normalize_candidate_trial_payload(item, segment, index))
+                CandidateTrial.model_validate(
+                    normalize_candidate_trial_payload(item, segment, index)
+                )
                 for index, item in enumerate(parsed_items, start=1)
             ]
-            appended = _append_candidate_trials_once(output_path, segment.segment_id, trials)
+            appended = _append_candidate_trials_once(
+                output_path, segment.segment_id, trials
+            )
             if not appended:
                 stats["skipped"] += 1
                 continue

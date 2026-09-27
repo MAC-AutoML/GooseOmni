@@ -136,7 +136,9 @@ def save_offsets(path: Path, offsets: list[SyncOffset]) -> None:
     payload = {
         "offsets": [
             offset.model_dump()
-            for offset in sorted(offsets, key=lambda item: (item.game_id, item.player_id))
+            for offset in sorted(
+                offsets, key=lambda item: (item.game_id, item.player_id)
+            )
         ]
     }
     write_json(path, payload)
@@ -170,7 +172,9 @@ def infer_sync_offsets(config: SyncConfig) -> dict[str, int]:
             offset = SyncOffset.model_validate(normalize_sync_payload(payload, video))
             final_offsets[key] = offset
             write_json(
-                config.review_dir / video.game_id / f"{video.player_id}_sync_result.json",
+                config.review_dir
+                / video.game_id
+                / f"{video.player_id}_sync_result.json",
                 {
                     "raw_video": {
                         "game_id": video.game_id,

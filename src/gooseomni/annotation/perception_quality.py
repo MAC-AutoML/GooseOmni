@@ -5,16 +5,37 @@ from collections import Counter
 from typing import Any
 
 VISUAL_EVENT_TYPES = {
-    "movement", "encounter", "task", "task_ui", "interaction",
-    "meeting", "vote", "kill", "body_report", "action_outcome",
+    "movement",
+    "encounter",
+    "task",
+    "task_ui",
+    "interaction",
+    "meeting",
+    "vote",
+    "kill",
+    "body_report",
+    "action_outcome",
 }
 AUDIO_EVENT_TYPES = {
-    "utterance", "claim", "reaction", "accusation", "defense", "audio_cue",
+    "utterance",
+    "claim",
+    "reaction",
+    "accusation",
+    "defense",
+    "audio_cue",
 }
 INTERACTIVE_UI_MARKERS = {"点击", "小游戏", "连线", "交互界面", "操作界面"}
 PASSIVE_TASK_MARKERS = {
-    "任务列表", "任务栏", "任务面板", "任务目标", "左侧任务", "角落任务",
-    "常驻", "sidebar", "task list", "objective list",
+    "任务列表",
+    "任务栏",
+    "任务面板",
+    "任务目标",
+    "左侧任务",
+    "角落任务",
+    "常驻",
+    "sidebar",
+    "task list",
+    "objective list",
 }
 RESULT_SCREEN_MARKERS = {"结算界面", "经验奖励", "获胜者奖励", "总经验", "胜利界面"}
 MAX_TASK_UI_DURATION_SEC = 20.0
@@ -93,18 +114,17 @@ def validate_pass_events(
                 abs(values[0] - float(row.get("start_sec", 0.0))) > 0.75
                 or abs(values[-1] - float(row.get("end_sec", 0.0))) > 0.75
             ):
-                issues.append("visual event times disagree with transcribed ABS timestamps")
+                issues.append(
+                    "visual event times disagree with transcribed ABS timestamps"
+                )
                 break
         task_ui_rows = [row for row in rows if row.get("event_type") == "task_ui"]
         movement_rows = [row for row in rows if row.get("event_type") == "movement"]
         for row in task_ui_rows:
             searchable = " ".join(
-                str(row.get(key, ""))
-                for key in ("description", "evidence", "location")
+                str(row.get(key, "")) for key in ("description", "evidence", "location")
             ).lower()
-            duration = float(row.get("end_sec", 0.0)) - float(
-                row.get("start_sec", 0.0)
-            )
+            duration = float(row.get("end_sec", 0.0)) - float(row.get("start_sec", 0.0))
             if any(marker in searchable for marker in PASSIVE_TASK_MARKERS):
                 issues.append("passive task list/sidebar is not interactive task_ui")
                 break
@@ -135,7 +155,9 @@ def validate_pass_events(
                 break
             heard_by = row.get("heard_by", [])
             if heard_by and not row.get("meeting_public") and len(set(heard_by)) >= 6:
-                issues.append("non-public audio event broadcasts heard_by to all players")
+                issues.append(
+                    "non-public audio event broadcasts heard_by to all players"
+                )
                 break
             if canonical_players is not None:
                 speaker = row.get("speaker_id")

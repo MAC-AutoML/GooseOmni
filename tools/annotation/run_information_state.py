@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import sys
 from pathlib import Path as _Path
 
@@ -21,8 +22,8 @@ if str(ROOT) not in sys.path:
 from gooseomni.benchmark.backends import create_backend
 from gooseomni.benchmark.io import load_segments_jsonl, write_json
 from gooseomni.benchmark.pipeline import (
-    annotation_path,
     annotate_text_with_segment_context,
+    annotation_path,
     append_review_items,
     filter_segments,
     load_json_if_exists,
@@ -31,8 +32,7 @@ from gooseomni.benchmark.pipeline import (
     validate_player_id,
 )
 from gooseomni.benchmark.prompts import information_state_prompt
-from gooseomni.benchmark.schema import InformationState, VALID_PLAYERS
-
+from gooseomni.benchmark.schema import VALID_PLAYERS, InformationState
 
 EVENT_FIELDS = {
     "event_id",

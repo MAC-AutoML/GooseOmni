@@ -89,7 +89,9 @@ def supports_modality(model_name: str, modality: str) -> tuple[bool, str | None]
     return True, None
 
 
-def _selected_rows(rows: list[dict[str, Any]], config: EvaluationConfig) -> list[dict[str, Any]]:
+def _selected_rows(
+    rows: list[dict[str, Any]], config: EvaluationConfig
+) -> list[dict[str, Any]]:
     selected = [
         row
         for index, row in enumerate(rows)
@@ -98,9 +100,16 @@ def _selected_rows(rows: list[dict[str, Any]], config: EvaluationConfig) -> list
     return selected[: config.limit] if config.limit is not None else selected
 
 
-def _task_key(row: dict[str, Any], model: str, modality: str, prompt_version: str) -> str:
+def _task_key(
+    row: dict[str, Any], model: str, modality: str, prompt_version: str
+) -> str:
     return "|".join(
-        [str(row.get("trial_id") or row.get("probe_id")), model, modality, prompt_version]
+        [
+            str(row.get("trial_id") or row.get("probe_id")),
+            model,
+            modality,
+            prompt_version,
+        ]
     )
 
 
@@ -142,7 +151,9 @@ def _prepare_run(config: EvaluationConfig, benchmark_root: Path) -> dict[str, An
                 "evaluation config or benchmark input changed; use a new run directory"
             )
     elif (config.run_root / "responses.jsonl").exists():
-        raise ValueError("responses exist without run_manifest.json; use a new run directory")
+        raise ValueError(
+            "responses exist without run_manifest.json; use a new run directory"
+        )
     manifest = {
         "version": "gooseomni_eval_v2",
         "config_hash": config_hash,
@@ -157,7 +168,11 @@ def _prepare_run(config: EvaluationConfig, benchmark_root: Path) -> dict[str, An
 
 def plan_evaluation(config: EvaluationConfig) -> dict[str, Any]:
     root = resolve_benchmark_root(config.benchmark)
-    models = tuple(spec.name for spec in list_model_specs()) if config.models == ("all",) else config.models
+    models = (
+        tuple(spec.name for spec in list_model_specs())
+        if config.models == ("all",)
+        else config.models
+    )
     tasks: list[dict[str, Any]] = []
     for track_name in config.tracks:
         track = get_track(track_name)
@@ -267,7 +282,11 @@ def run_evaluation(
     responses_path = config.run_root / "responses.jsonl"
     events_path = config.run_root / "events.jsonl"
     errors_path = config.run_root / "errors.jsonl"
-    models = tuple(spec.name for spec in list_model_specs()) if config.models == ("all",) else config.models
+    models = (
+        tuple(spec.name for spec in list_model_specs())
+        if config.models == ("all",)
+        else config.models
+    )
     completed = _completed_keys(responses_path) if config.resume else set()
     pending: list[tuple[str, dict[str, Any], str, str]] = []
     for track_name in config.tracks:
@@ -281,7 +300,11 @@ def run_evaluation(
                     if key not in completed:
                         pending.append((track_name, row, model, modality))
     local_models = {spec.name for spec in list_model_specs() if spec.kind == "local"}
-    workers = 1 if any(model in local_models for _, _, model, _ in pending) else max(1, config.workers)
+    workers = (
+        1
+        if any(model in local_models for _, _, model, _ in pending)
+        else max(1, config.workers)
+    )
     append_jsonl(
         events_path,
         {

@@ -7,7 +7,6 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-
 PLAYERS = ["Gemini", "baile", "beigang", "mojiang", "saoyi", "xiaolu"]
 QUALITY_PROFILE = {
     "QWEN3_OMNI_MAX_TOKENS": 16384,
@@ -154,7 +153,7 @@ def extract_clip(
         "+faststart",
         output.as_posix(),
     ]
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.run(cmd, capture_output=True, text=True)
     return {
         "ok": proc.returncode == 0 and output.exists() and output.stat().st_size > 0,
         "video": video.as_posix(),
@@ -196,7 +195,7 @@ def concat_review_sequence(clips: list[dict[str, Any]], output: Path, *, reencod
         cmd.extend(["-c:v", "mpeg4", "-q:v", "4", "-c:a", "aac", "-movflags", "+faststart", output.as_posix()])
     else:
         cmd.extend(["-c", "copy", "-movflags", "+faststart", output.as_posix()])
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.run(cmd, capture_output=True, text=True)
     return {
         "ok": proc.returncode == 0 and output.exists() and output.stat().st_size > 0,
         "inputs": [path.as_posix() for path in inputs],

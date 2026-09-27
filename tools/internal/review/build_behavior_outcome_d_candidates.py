@@ -7,9 +7,15 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-
 PLAYERS = ["Gemini", "baile", "beigang", "mojiang", "saoyi", "xiaolu"]
-STRATEGIC_CLAIM_TYPES = {"accusation", "defense", "location", "sighting", "vote_suggestion", "other"}
+STRATEGIC_CLAIM_TYPES = {
+    "accusation",
+    "defense",
+    "location",
+    "sighting",
+    "vote_suggestion",
+    "other",
+}
 MIN_CLAIM_LEN = 8
 MIN_GAP_SEC = 1.0
 MAX_GAP_SEC = 240.0
@@ -23,18 +29,27 @@ def phase_start(phase_id: str) -> float:
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
 
 
 def vote_target_from_description(description: str) -> tuple[str | None, str | None]:
     if "投票" not in description or "选择了" not in description:
         return None, None
-    voter = next((player for player in PLAYERS if f"{player} 在投票" in description), None)
+    voter = next(
+        (player for player in PLAYERS if f"{player} 在投票" in description), None
+    )
     if not voter:
         return None, None
     target = description.split("选择了", 1)[1].strip().strip("。").strip()
@@ -69,7 +84,11 @@ def find_clip(clip_root: Path, player: str, abs_sec: float) -> Path | None:
 def extract_frame(video: Path, abs_sec: float, output: Path) -> dict[str, Any]:
     bounds = clip_bounds(video, video.parent.name)
     if not bounds:
-        return {"ok": False, "reason": "cannot_parse_clip_bounds", "video": video.as_posix()}
+        return {
+            "ok": False,
+            "reason": "cannot_parse_clip_bounds",
+            "video": video.as_posix(),
+        }
     start, _ = bounds
     local_sec = max(0.0, abs_sec - start)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -84,7 +103,7 @@ def extract_frame(video: Path, abs_sec: float, output: Path) -> dict[str, Any]:
         "1",
         output.as_posix(),
     ]
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.run(cmd, capture_output=True, text=True)
     return {
         "ok": proc.returncode == 0 and output.exists(),
         "video": video.as_posix(),
@@ -99,7 +118,9 @@ def release_video_path(release_video_root: Path, phase_id: str, player: str) -> 
     return release_video_root / phase_id / f"{player}.mp4"
 
 
-def extract_release_frame(release_video_root: Path, phase_id: str, player: str, abs_sec: float, output: Path) -> dict[str, Any]:
+def extract_release_frame(
+    release_video_root: Path, phase_id: str, player: str, abs_sec: float, output: Path
+) -> dict[str, Any]:
     video = release_video_path(release_video_root, phase_id, player)
     if not video.exists():
         return {
@@ -123,7 +144,7 @@ def extract_release_frame(release_video_root: Path, phase_id: str, player: str, 
         "1",
         output.as_posix(),
     ]
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.run(cmd, capture_output=True, text=True)
     return {
         "ok": proc.returncode == 0 and output.exists(),
         "video": video.as_posix(),
@@ -137,7 +158,12 @@ def extract_release_frame(release_video_root: Path, phase_id: str, player: str, 
 
 
 def candidate_key(row: dict[str, Any]) -> tuple[float, str, str, str]:
-    return (float(row["gap_sec"]), row["claim_id"], row["vote_event_id"], row["listener"])
+    return (
+        float(row["gap_sec"]),
+        row["claim_id"],
+        row["vote_event_id"],
+        row["listener"],
+    )
 
 
 def first_phase_id(row: dict[str, Any]) -> str | None:
@@ -156,7 +182,9 @@ def build_candidates(
     events = read_jsonl(ledger_root / "world_events.jsonl")
     candidates: list[dict[str, Any]] = []
     for event in events:
-        voter, vote_target_text = vote_target_from_description(str(event.get("description", "")))
+        voter, vote_target_text = vote_target_from_description(
+            str(event.get("description", ""))
+        )
         if not voter or not vote_target_text:
             continue
         vote_abs_start = float(event.get("abs_start_sec", 0.0))
@@ -176,12 +204,20 @@ def build_candidates(
             gap = vote_abs_start - claim_end
             if not (MIN_GAP_SEC <= gap <= MAX_GAP_SEC):
                 continue
-            vote_source = next((p for p in event.get("source_povs", []) if p in PLAYERS), voter)
+            vote_source = next(
+                (p for p in event.get("source_povs", []) if p in PLAYERS), voter
+            )
             claim_frame_player = voter
             vote_phase_id = first_phase_id(event)
             claim_phase_id = first_phase_id(claim)
-            vote_clip = find_clip(clip_root, vote_source, vote_abs_end) if clip_root else None
-            claim_clip = find_clip(clip_root, claim_frame_player, claim_end) if clip_root else None
+            vote_clip = (
+                find_clip(clip_root, vote_source, vote_abs_end) if clip_root else None
+            )
+            claim_clip = (
+                find_clip(clip_root, claim_frame_player, claim_end)
+                if clip_root
+                else None
+            )
             row_id = f"dbo_{len(candidates) + 1:06d}_{claim['claim_id']}_{event['world_event_id']}_{voter}"
             row = {
                 "candidate_id": row_id,
@@ -260,7 +296,9 @@ def build_candidates(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build strict D behavior-outcome candidates from explicit vote evidence.")
+    parser = argparse.ArgumentParser(
+        description="Build strict D behavior-outcome candidates from explicit vote evidence."
+    )
     parser.add_argument("--ledger-root", type=Path, required=True)
     parser.add_argument("--clip-root", type=Path, default=None)
     parser.add_argument("--release-video-root", type=Path, default=None)
@@ -273,16 +311,28 @@ def main() -> None:
     args = parse_args()
     if not args.clip_root and not args.release_video_root:
         raise SystemExit("one of --clip-root or --release-video-root is required")
-    rows = build_candidates(args.ledger_root, args.clip_root, args.release_video_root, args.output_root, args.limit)
+    rows = build_candidates(
+        args.ledger_root,
+        args.clip_root,
+        args.release_video_root,
+        args.output_root,
+        args.limit,
+    )
     write_jsonl(args.output_root / "behavior_outcome_d_candidates.jsonl", rows)
     summary = {
         "ok": True,
         "output_root": args.output_root.as_posix(),
         "candidates": len(rows),
-        "with_claim_frame": sum(1 for row in rows if row.get("claim_frame", {}).get("ok")),
-        "with_vote_frame": sum(1 for row in rows if row.get("vote_frame", {}).get("ok")),
+        "with_claim_frame": sum(
+            1 for row in rows if row.get("claim_frame", {}).get("ok")
+        ),
+        "with_vote_frame": sum(
+            1 for row in rows if row.get("vote_frame", {}).get("ok")
+        ),
     }
-    (args.output_root / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (args.output_root / "summary.json").write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 

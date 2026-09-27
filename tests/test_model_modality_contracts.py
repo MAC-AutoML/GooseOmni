@@ -27,7 +27,9 @@ API_MODELS = {
 
 
 @pytest.mark.parametrize("model_name", sorted(OMNI_HTTP_MODELS))
-@pytest.mark.parametrize("use_video,use_audio", [(True, True), (True, False), (False, True), (False, False)])
+@pytest.mark.parametrize(
+    "use_video,use_audio", [(True, True), (True, False), (False, True), (False, False)]
+)
 def test_local_http_clients_forward_media_switches(
     monkeypatch: pytest.MonkeyPatch,
     model_name: str,
@@ -93,7 +95,9 @@ def test_api_clients_map_media_to_gateway_content(
 ) -> None:
     captured: dict[str, bool] = {}
 
-    monkeypatch.setattr(OpenAICompatTester, "__init__", lambda self, *args, **kwargs: None)
+    monkeypatch.setattr(
+        OpenAICompatTester, "__init__", lambda self, *args, **kwargs: None
+    )
 
     def fake_call(self: OpenAICompatTester, *args: object, **kwargs: object) -> str:
         captured["include_images"] = bool(kwargs["include_images"])
@@ -122,7 +126,9 @@ def test_gpt4o_maps_text_and_visual_without_audio(
 ) -> None:
     captured: dict[str, object] = {}
 
-    monkeypatch.setattr(OpenAICompatTester, "__init__", lambda self, *args, **kwargs: None)
+    monkeypatch.setattr(
+        OpenAICompatTester, "__init__", lambda self, *args, **kwargs: None
+    )
 
     def fake_call(self: OpenAICompatTester, *args: object, **kwargs: object) -> str:
         captured["media_path"] = args[0]

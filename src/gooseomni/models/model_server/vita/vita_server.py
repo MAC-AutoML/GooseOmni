@@ -1,25 +1,23 @@
 import argparse
 import os
-import sys
-import tempfile
-import warnings
-import traceback
 import re
+import tempfile
+import traceback
+import warnings
 from pathlib import Path
 
 from flask import Flask, jsonify, request
 
+from gooseomni.config.settings import CONFIG
+from gooseomni.models.model_server.local_common.gpu_visibility import (
+    configure_cuda_visible_devices,
+)
+from gooseomni.models.model_server.local_common.http import parse_infer_request
+
 ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 VITA_ROOT = Path(__file__).resolve().parent / "vita_lib"
-if str(VITA_ROOT) not in sys.path:
-    sys.path.insert(0, str(VITA_ROOT))
 
-from gooseomni.config.settings import CONFIG
-from gooseomni.models.model_server.local_common.gpu_visibility import configure_cuda_visible_devices
-from gooseomni.models.model_server.local_common.http import parse_infer_request
 
 warnings.filterwarnings("ignore")
 
@@ -34,13 +32,14 @@ os.environ.setdefault("VITA_DISABLE_AUDIO", "0")
 os.environ.setdefault("VITA_DELAY_VISION_TOWER", "1")
 
 # Global configuration
-MODEL_PATH = CONFIG.model("vita_1_5").get("model_path") or "/publicssd/xty/models/VITA-1.5"
+MODEL_PATH = (
+    CONFIG.model("vita_1_5").get("model_path") or "/publicssd/xty/models/VITA-1.5"
+)
 os.environ.setdefault(
     "VITA_AUDIO_ENCODER_PATH",
     str(
         CONFIG.model("vita_1_5").get("audio_encoder_path")
-        or Path(MODEL_PATH)
-        / "audio-encoder-Qwen2-7B-1107-weight-base-11wh-tunning"
+        or Path(MODEL_PATH) / "audio-encoder-Qwen2-7B-1107-weight-base-11wh-tunning"
     ),
 )
 os.environ.setdefault(
@@ -87,10 +86,10 @@ def _get_rawvideo_dec(
     e=None,
     image_aspect_ratio="pad",
 ):
-    from decord import VideoReader, cpu
     import numpy as np
-    from PIL import Image
     import torch
+    from decord import VideoReader, cpu
+    from PIL import Image
 
     if s is None:
         start_time, end_time = None, None
@@ -111,7 +110,9 @@ def _get_rawvideo_dec(
 
     fps = vreader.get_avg_fps()
     f_start = 0 if start_time is None else int(start_time * fps)
-    f_end = int(min(1000000000 if end_time is None else end_time * fps, len(vreader) - 1))
+    f_end = int(
+        min(1000000000 if end_time is None else end_time * fps, len(vreader) - 1)
+    )
     num_frames = f_end - f_start + 1
     if num_frames > 0:
         sample_fps = int(video_framerate)
@@ -120,16 +121,20 @@ def _get_rawvideo_dec(
         all_pos = list(range(f_start, f_end + 1, t_stride))
         if max_frames is not None and len(all_pos) > max_frames:
             sample_pos = [
-                all_pos[_] for _ in np.linspace(0, len(all_pos) - 1, num=max_frames, dtype=int)
+                all_pos[_]
+                for _ in np.linspace(0, len(all_pos) - 1, num=max_frames, dtype=int)
             ]
         elif len(all_pos) < min_frames:
             sample_pos = [
-                all_pos[_] for _ in np.linspace(0, len(all_pos) - 1, num=min_frames, dtype=int)
+                all_pos[_]
+                for _ in np.linspace(0, len(all_pos) - 1, num=min_frames, dtype=int)
             ]
         else:
             sample_pos = all_pos
 
-        patch_images = [Image.fromarray(f) for f in vreader.get_batch(sample_pos).asnumpy()]
+        patch_images = [
+            Image.fromarray(f) for f in vreader.get_batch(sample_pos).asnumpy()
+        ]
 
         if image_aspect_ratio == "pad":
 
@@ -146,7 +151,9 @@ def _get_rawvideo_dec(
                 return result
 
             patch_images = [
-                expand2square(i, tuple(int(x * 255) for x in image_processor.image_mean))
+                expand2square(
+                    i, tuple(int(x * 255) for x in image_processor.image_mean)
+                )
                 for i in patch_images
             ]
             patch_images = [
@@ -174,8 +181,8 @@ def load_model():
 
     import torch
     from vita.model.builder import load_pretrained_model
-    from vita.util.utils import disable_torch_init
     from vita.util.mm_utils import get_model_name_from_path
+    from vita.util.utils import disable_torch_init
 
     if hasattr(torch, "get_default_device") and hasattr(torch, "set_default_device"):
         try:
@@ -216,6 +223,7 @@ def load_model():
 def _materialize_audio_runtime_tensors(audio_encoder):
     """Rebuild non-parameter tensors created inside HF's meta init context."""
     import math
+
     import torch
     import torchaudio.compliance.kaldi as kaldi
 
@@ -315,6 +323,7 @@ def run_inference(
 ):
     assert model_loaded and model is not None, "Model is not loaded"
 
+    import torch
     from vita.constants import (
         DEFAULT_AUDIO_TOKEN,
         DEFAULT_IMAGE_TOKEN,
@@ -327,8 +336,6 @@ def run_inference(
         tokenizer_image_audio_token,
         tokenizer_image_token,
     )
-
-    import torch
 
     if use_video:
         max_frames = MAX_FRAMES or MAX_IMAGE_LENGTH
@@ -359,9 +366,11 @@ def run_inference(
     prompt = conv.get_prompt(modality=modality)
 
     tokenize = tokenizer_image_audio_token if use_audio else tokenizer_image_token
-    input_ids = tokenize(
-        prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt"
-    ).unsqueeze(0).cuda()
+    input_ids = (
+        tokenize(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt")
+        .unsqueeze(0)
+        .cuda()
+    )
 
     stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
     if conv.version == "qwen2p5_instruct":
@@ -390,7 +399,11 @@ def run_inference(
 
     output_ids = output_ids.sequences
     input_token_len = input_ids.shape[1]
-    gen_ids = output_ids[:, input_token_len:] if output_ids.shape[1] > input_token_len else output_ids
+    gen_ids = (
+        output_ids[:, input_token_len:]
+        if output_ids.shape[1] > input_token_len
+        else output_ids
+    )
     outputs = tokenizer.batch_decode(gen_ids, skip_special_tokens=False)[0]
     outputs = outputs.strip()
     if outputs.endswith(stop_str):
@@ -451,8 +464,12 @@ def analyze_video():
 
 def parse_args():
     parser = argparse.ArgumentParser(description="VITA-1.5 Video Analysis Server")
-    parser.add_argument("--port", type=int, default=5093, help="Server port (default: 5093)")
-    parser.add_argument("--host", default="0.0.0.0", help="Server host address (default: 0.0.0.0)")
+    parser.add_argument(
+        "--port", type=int, default=5093, help="Server port (default: 5093)"
+    )
+    parser.add_argument(
+        "--host", default="0.0.0.0", help="Server host address (default: 0.0.0.0)"
+    )
     return parser.parse_args()
 
 

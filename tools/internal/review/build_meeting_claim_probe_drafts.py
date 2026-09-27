@@ -12,17 +12,26 @@ PLAYERS = {"Gemini", "baile", "beigang", "mojiang", "saoyi", "xiaolu"}
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
 
 
 def compact_text(text: str, limit: int = 180) -> str:
@@ -61,12 +70,15 @@ def build_group(record: dict[str, Any], index: int) -> dict[str, Any]:
     strategic = claim.get("strategic_function") or "unknown"
     display_targets = claim.get("claim_target_display_names") or []
     canonical_targets = claim.get("claim_target_players") or []
-    target_summary = ", ".join(canonical_targets or display_targets) or "the discussed player/event"
+    target_summary = (
+        ", ".join(canonical_targets or display_targets) or "the discussed player/event"
+    )
     source_id = record["source_review_item_id"]
     group_id = f"mcg_pg_{index:05d}_{source_id}"
     query_type = (
         "claim_truth_vs_claim_awareness"
-        if "claim_truth_vs_claim_awareness" in (record.get("suggested_probe_uses") or [])
+        if "claim_truth_vs_claim_awareness"
+        in (record.get("suggested_probe_uses") or [])
         else "trust_update"
     )
     return {
@@ -102,7 +114,10 @@ def build_group(record: dict[str, Any], index: int) -> dict[str, Any]:
                 "false_belief",
                 "representational_change",
                 "perspective_taking",
-                "strategy_communication" if strategic in {"accuse", "defend_self", "defend_other", "coordinate_vote"} else "",
+                "strategy_communication"
+                if strategic
+                in {"accuse", "defend_self", "defend_other", "coordinate_vote"}
+                else "",
             ]
             if family
         ],
@@ -127,7 +142,9 @@ def build_probes(group: dict[str, Any]) -> list[dict[str, Any]]:
     claim_short = compact_text(claim_text)
     display_targets = group.get("claim_target_display_names") or []
     canonical_targets = group.get("claim_target_players") or []
-    target_text = ", ".join(canonical_targets or display_targets) or "the referenced player/event"
+    target_text = (
+        ", ".join(canonical_targets or display_targets) or "the referenced player/event"
+    )
     target_player = group["target_player"]
     cutoff = group["cutoff_abs_sec"]
     public_form = {
@@ -163,7 +180,9 @@ def build_probes(group: dict[str, Any]) -> list[dict[str, Any]]:
             "probe_type": "A_pre_reveal_belief",
             "input_condition": "target_available_events",
             "prompt": (
-                "QUERY_VARIABLE_PUBLIC_FORM_JSON=" + json.dumps(public_form, ensure_ascii=False) + "\n"
+                "QUERY_VARIABLE_PUBLIC_FORM_JSON="
+                + json.dumps(public_form, ensure_ascii=False)
+                + "\n"
                 f"在会议中，{speaker} 说：『{claim_short}』。只根据当时公开可听到的发言，"
                 f"目标玩家 {target_player} 应如何理解这条关于 {target_text} 的 claim？不要使用其他 POV 的隐藏事实。"
             ),
@@ -175,7 +194,13 @@ def build_probes(group: dict[str, Any]) -> list[dict[str, Any]]:
             "input_condition": "oracle_truth_revealed",
             "prompt": (
                 "ORACLE_TRUTH_JSON="
-                + json.dumps({"claim_text": claim_text, "source": "meeting_claim_audio_confirmed"}, ensure_ascii=False)
+                + json.dumps(
+                    {
+                        "claim_text": claim_text,
+                        "source": "meeting_claim_audio_confirmed",
+                    },
+                    ensure_ascii=False,
+                )
                 + "\n"
                 f"现在可以看到后验全局信息，但请重建 claim 刚说完时 {target_player} 的主观状态。"
                 f"当时听到 {speaker} 的发言『{claim_short}』后，{target_player} 应如何理解这条 claim？"
@@ -188,7 +213,9 @@ def build_probes(group: dict[str, Any]) -> list[dict[str, Any]]:
             "probe_type": "C_other_agent_false_belief",
             "input_condition": "public_history_only",
             "prompt": (
-                "QUERY_VARIABLE_PUBLIC_FORM_JSON=" + json.dumps(public_form, ensure_ascii=False) + "\n"
+                "QUERY_VARIABLE_PUBLIC_FORM_JSON="
+                + json.dumps(public_form, ensure_ascii=False)
+                + "\n"
                 f"另一个只听到同一段公开会议发言、但没有额外私人 POV 证据的玩家，"
                 f"在 {cutoff:.1f}s 时应如何理解 {speaker} 的发言『{claim_short}』？"
             ),
@@ -200,9 +227,13 @@ def build_probes(group: dict[str, Any]) -> list[dict[str, Any]]:
             "input_condition": "speaker_perspective",
             "prompt": (
                 "SPEAKER_AVAILABLE_CONTEXT_JSON="
-                + json.dumps({"speaker": speaker, "claim_text": claim_text}, ensure_ascii=False)
+                + json.dumps(
+                    {"speaker": speaker, "claim_text": claim_text}, ensure_ascii=False
+                )
                 + "\n"
-                "SPEAKER_MODEL_OF_LISTENER_PUBLIC_HISTORY_JSON=" + json.dumps(public_form, ensure_ascii=False) + "\n"
+                "SPEAKER_MODEL_OF_LISTENER_PUBLIC_HISTORY_JSON="
+                + json.dumps(public_form, ensure_ascii=False)
+                + "\n"
                 f"从发言者 {speaker} 的视角看，说完『{claim_short}』后，"
                 f"{speaker} 应该预期其他玩家会如何理解、相信、质疑或跟随这条关于 {target_text} 的 claim？"
             ),
@@ -210,7 +241,9 @@ def build_probes(group: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def build_hidden_gold(group: dict[str, Any], probes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def build_hidden_gold(
+    group: dict[str, Any], probes: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     d_reference = {
         "human_verified_scope": "Audio-confirmed meeting claim and public listener interpretation; does not certify hidden global truth beyond the claim text.",
         "speaker": group["speaker"],
@@ -240,7 +273,9 @@ def build_hidden_gold(group: dict[str, Any], probes: list[dict[str, Any]]) -> li
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build qwen_checked Decrypto-style probe drafts from meeting-claim merge records.")
+    parser = argparse.ArgumentParser(
+        description="Build qwen_checked Decrypto-style probe drafts from meeting-claim merge records."
+    )
     parser.add_argument("--merge-review-records", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     args = parser.parse_args()
@@ -249,7 +284,8 @@ def main() -> None:
         row
         for row in read_jsonl(args.merge_review_records)
         if row.get("safe_for_probe_draft_generation") is True
-        and row.get("codex_human_merge_decision") == "accept_for_qwen_checked_merge_candidate"
+        and row.get("codex_human_merge_decision")
+        == "accept_for_qwen_checked_merge_candidate"
     ]
     groups: list[dict[str, Any]] = []
     probes: list[dict[str, Any]] = []

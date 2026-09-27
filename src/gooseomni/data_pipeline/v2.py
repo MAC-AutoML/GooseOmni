@@ -176,9 +176,7 @@ def build_manifest(root: Path, source_root: Path) -> dict[str, Any]:
         "file_count": len(records),
         "total_bytes": sum(int(row["bytes"]) for row in records),
         "validation": {
-            "line_counts": {
-                path: _line_count(root / path) for path in COUNT_PATHS
-            },
+            "line_counts": {path: _line_count(root / path) for path in COUNT_PATHS},
             "public_file_leak_hits": _public_leaks(root),
         },
         "files": records,
@@ -260,7 +258,9 @@ def validate_v2(root: Path, probe_media: bool = True) -> dict[str, Any]:
         if path.name == "manifest.json":
             continue
         if "human_verified" in path.read_text(encoding="utf-8"):
-            issues.append(f"automatic v2 contains human_verified: {path.relative_to(root)}")
+            issues.append(
+                f"automatic v2 contains human_verified: {path.relative_to(root)}"
+            )
     raw_rows = read_jsonl(root / "public/raw_video_smoke/raw_video_smoke.jsonl")
     media_results = []
     for value in sorted({str(row["video_file"]) for row in raw_rows}):
@@ -270,7 +270,9 @@ def validate_v2(root: Path, probe_media: bool = True) -> dict[str, Any]:
             continue
         if probe_media:
             has_video, has_audio = _probe_media(path)
-            media_results.append({"path": value, "video": has_video, "audio": has_audio})
+            media_results.append(
+                {"path": value, "video": has_video, "audio": has_audio}
+            )
             if not has_video or not has_audio:
                 issues.append(f"invalid AV streams: {value}")
     return {

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Iterable
+from collections.abc import Iterable
 
 
 def configure_cuda_visible_devices(gpu_ids: Iterable[int] | None) -> list[int]:

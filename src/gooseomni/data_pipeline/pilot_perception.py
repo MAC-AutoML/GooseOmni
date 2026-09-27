@@ -119,9 +119,7 @@ def _perception_stage(context: Any, pass_kind: str) -> dict[str, Any]:
         "--resume",
         "--canonical-players",
         ",".join(
-            player.player_id
-            for game in context.config.games
-            for player in game.players
+            player.player_id for game in context.config.games for player in game.players
         ),
         "--speaker-confidence-min",
         str(context.config.speaker_confidence_min),
@@ -142,8 +140,10 @@ def _perception_stage(context: Any, pass_kind: str) -> dict[str, Any]:
             f"{pass_kind} perception has {active_oom_count} active CUDA OOM errors; "
             "restart the model service and resume"
         )
-    if active_error_count and output_count == 0 and not recoverable_visual_errors(
-        pass_kind, error_root, target
+    if (
+        active_error_count
+        and output_count == 0
+        and not recoverable_visual_errors(pass_kind, error_root, target)
     ):
         raise RuntimeError(
             f"{pass_kind} perception failed closed: {active_error_count} "

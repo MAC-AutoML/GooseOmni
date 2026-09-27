@@ -1,41 +1,30 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
-import sys
 from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from gooseomni.benchmark.backends import create_backend
 from gooseomni.benchmark.io import load_segments_jsonl, write_json
 from gooseomni.benchmark.pipeline import (
-    annotation_path,
     annotate_text_with_segment_context,
+    annotation_path,
     append_review_items,
     filter_segments,
     normalize_phase_event_payload,
-    retry_prompt_for_compact_json,
     parse_json_array,
+    retry_prompt_for_compact_json,
     save_error,
 )
 from gooseomni.benchmark.prompts import phase_event_prompt
 from gooseomni.benchmark.schema import PhaseEvent, PhaseEventAnnotation
 
+ROOT = Path(__file__).resolve().parents[1]
+
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Annotate public phase events for Omni Goose.")
+    parser = argparse.ArgumentParser(
+        description="Annotate public phase events for Omni Goose."
+    )
     parser.add_argument("--dataset-root", default="data/gooseomni", type=Path)
     parser.add_argument("--output-root", default=None, type=Path)
     parser.add_argument("--segments-jsonl", default=None, type=Path)
@@ -56,7 +45,13 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    backend = create_backend(args.backend, model=args.model, api_key_env=args.api_key_env, base_url=args.base_url, server_url=args.server_url)
+    backend = create_backend(
+        args.backend,
+        model=args.model,
+        api_key_env=args.api_key_env,
+        base_url=args.base_url,
+        server_url=args.server_url,
+    )
     segments_path = args.segments_jsonl or args.dataset_root / "segments.jsonl"
     stats = {"ok": 0, "error": 0, "skipped": 0}
     for segment in filter_segments(
@@ -67,7 +62,9 @@ def main() -> None:
         skip=args.skip,
         stride=args.stride,
     ):
-        output_path = annotation_path(args.dataset_root, "phase_events", segment, annotation_root=args.output_root)
+        output_path = annotation_path(
+            args.dataset_root, "phase_events", segment, annotation_root=args.output_root
+        )
         if output_path.exists() and args.resume and not args.overwrite:
             stats["skipped"] += 1
             continue
@@ -81,12 +78,16 @@ def main() -> None:
         prompt = phase_event_prompt(segment, sources)
         raw_response = ""
         try:
-            raw_response = annotate_text_with_segment_context(backend, prompt, args.dataset_root, segment)
+            raw_response = annotate_text_with_segment_context(
+                backend, prompt, args.dataset_root, segment
+            )
             try:
                 parsed_items = parse_json_array(raw_response)
             except Exception as first_error:  # noqa: BLE001
                 prompt = retry_prompt_for_compact_json(prompt, max_items=3)
-                retry_response = annotate_text_with_segment_context(backend, prompt, args.dataset_root, segment)
+                retry_response = annotate_text_with_segment_context(
+                    backend, prompt, args.dataset_root, segment
+                )
                 try:
                     parsed_items = parse_json_array(retry_response)
                     raw_response = retry_response
@@ -103,7 +104,9 @@ def main() -> None:
                     )
                     raise ValueError(raw_response) from second_error
             phase_events = [
-                PhaseEvent.model_validate(normalize_phase_event_payload(item, segment, index))
+                PhaseEvent.model_validate(
+                    normalize_phase_event_payload(item, segment, index)
+                )
                 for index, item in enumerate(parsed_items, start=1)
             ]
             annotation = PhaseEventAnnotation(
@@ -115,14 +118,27 @@ def main() -> None:
                 raw_response=raw_response,
             )
             write_json(output_path, annotation)
-            append_review_items(args.dataset_root, annotation_root=args.output_root, stage="phase_events", segment=segment, items=phase_events)
+            append_review_items(
+                args.dataset_root,
+                annotation_root=args.output_root,
+                stage="phase_events",
+                segment=segment,
+                items=phase_events,
+            )
             stats["ok"] += 1
         except Exception as exc:  # noqa: BLE001
-            save_error(dataset_root=args.dataset_root, annotation_root=args.output_root, stage="phase_events", segment=segment, prompt=prompt, raw_response=raw_response, error=exc)
+            save_error(
+                dataset_root=args.dataset_root,
+                annotation_root=args.output_root,
+                stage="phase_events",
+                segment=segment,
+                prompt=prompt,
+                raw_response=raw_response,
+                error=exc,
+            )
             stats["error"] += 1
     print(stats)
 
 
 if __name__ == "__main__":
     main()
-

@@ -3,11 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
-import sys
 from pathlib import Path
 from typing import Any
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from gooseomni.benchmark.decrypto_diagnostics import (  # noqa: E402
     generate_probes_for_group,
@@ -17,7 +14,9 @@ from gooseomni.benchmark.decrypto_diagnostics import (  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build private-witness candidates from already human-reviewed anchors.")
+    parser = argparse.ArgumentParser(
+        description="Build private-witness candidates from already human-reviewed anchors."
+    )
     parser.add_argument("--input-pass-root", type=Path, required=True)
     parser.add_argument("--output-pass-root", type=Path, required=True)
     parser.add_argument("--anchor-event-id", action="append", required=True)
@@ -49,7 +48,12 @@ def make_group(idx: int, event: dict[str, Any], witness: str) -> dict[str, Any]:
             f"{witness} is the direct source POV for {event_id}; prior human reviews verified other target perspectives "
             "did not have the same anchor evidence."
         ),
-        "diagnostic_families": ["false_belief", "representational_change", "perspective_taking", "private_witness"],
+        "diagnostic_families": [
+            "false_belief",
+            "representational_change",
+            "perspective_taking",
+            "private_witness",
+        ],
         "template": "private_witness",
         "quality": {
             "visibility_confidence": 0.9,
@@ -83,7 +87,9 @@ def main() -> None:
             raise SystemExit(f"missing event: {event_id}")
         source_povs = event.get("source_povs", [])
         if len(source_povs) != 1:
-            raise SystemExit(f"event must have exactly one source POV for private_witness: {event_id} {source_povs}")
+            raise SystemExit(
+                f"event must have exactly one source POV for private_witness: {event_id} {source_povs}"
+            )
         groups.append(make_group(len(groups) + 1, event, source_povs[0]))
 
     diagnostics = args.output_pass_root / "annotations" / "diagnostics"
@@ -109,10 +115,21 @@ def main() -> None:
         quality_rows.append(quality)
 
     write_jsonl(diagnostics / "probe_groups.jsonl", groups)
-    write_jsonl(diagnostics / "probes_A_pre_reveal.jsonl", probes_by_type["A_pre_reveal_belief"])
-    write_jsonl(diagnostics / "probes_B_reconstruct.jsonl", probes_by_type["B_post_reveal_reconstruct_previous_belief"])
-    write_jsonl(diagnostics / "probes_C_false_belief.jsonl", probes_by_type["C_other_agent_false_belief"])
-    write_jsonl(diagnostics / "probes_D_perspective_taking.jsonl", probes_by_type["D_perspective_taking_prediction"])
+    write_jsonl(
+        diagnostics / "probes_A_pre_reveal.jsonl", probes_by_type["A_pre_reveal_belief"]
+    )
+    write_jsonl(
+        diagnostics / "probes_B_reconstruct.jsonl",
+        probes_by_type["B_post_reveal_reconstruct_previous_belief"],
+    )
+    write_jsonl(
+        diagnostics / "probes_C_false_belief.jsonl",
+        probes_by_type["C_other_agent_false_belief"],
+    )
+    write_jsonl(
+        diagnostics / "probes_D_perspective_taking.jsonl",
+        probes_by_type["D_perspective_taking_prediction"],
+    )
     write_jsonl(diagnostics / "hidden_gold.jsonl", hidden_gold)
     write_jsonl(diagnostics / "diagnostic_quality.jsonl", quality_rows)
     print(

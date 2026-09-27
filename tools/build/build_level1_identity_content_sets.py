@@ -1,21 +1,12 @@
-#!/usr/bin/env python3
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import json
 import random
 import re
 from pathlib import Path
+
+#!/usr/bin/env python3
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,7 +45,9 @@ def choice_prefix(index: int) -> str:
     return "ABCD"[index]
 
 
-def build_unique_options(parsed: list[tuple[str, str]], target: str, correct_choice: str) -> tuple[list[str], str] | None:
+def build_unique_options(
+    parsed: list[tuple[str, str]], target: str, correct_choice: str
+) -> tuple[list[str], str] | None:
     idx = "ABCD".index(correct_choice)
     values = []
     for speaker, content in parsed:
@@ -70,7 +63,9 @@ def build_unique_options(parsed: list[tuple[str, str]], target: str, correct_cho
     return options, choice_prefix(unique_values.index(correct_value))
 
 
-def build_sets(rows: list[dict], max_samples: int, seed: int) -> tuple[list[dict], list[dict]]:
+def build_sets(
+    rows: list[dict], max_samples: int, seed: int
+) -> tuple[list[dict], list[dict]]:
     valid = []
     for row in rows:
         parsed = [parse_option(opt) for opt in row.get("options", [])]
@@ -85,7 +80,9 @@ def build_sets(rows: list[dict], max_samples: int, seed: int) -> tuple[list[dict
     identity_rows = []
     content_rows = []
     for row, parsed_raw in selected:
-        parsed = [(speaker, content) for speaker, content in parsed_raw if speaker and content]
+        parsed = [
+            (speaker, content) for speaker, content in parsed_raw if speaker and content
+        ]
         correct = str(row.get("correct_answer", "")).strip().upper()
         if correct not in {"A", "B", "C", "D"}:
             continue
@@ -105,20 +102,24 @@ def build_sets(rows: list[dict], max_samples: int, seed: int) -> tuple[list[dict
                 "ablation_source_id": row.get("id"),
             },
         }
-        identity_rows.append({
-            **common,
-            "question": "Who is speaking in the specified video segment?",
-            "options": identity_options,
-            "correct_answer": identity_answer,
-            "metadata": {**common["metadata"], "ablation": "identity-unique"},
-        })
-        content_rows.append({
-            **common,
-            "question": "Which utterance is spoken in the specified video segment?",
-            "options": content_options,
-            "correct_answer": content_answer,
-            "metadata": {**common["metadata"], "ablation": "content-unique"},
-        })
+        identity_rows.append(
+            {
+                **common,
+                "question": "Who is speaking in the specified video segment?",
+                "options": identity_options,
+                "correct_answer": identity_answer,
+                "metadata": {**common["metadata"], "ablation": "identity-unique"},
+            }
+        )
+        content_rows.append(
+            {
+                **common,
+                "question": "Which utterance is spoken in the specified video segment?",
+                "options": content_options,
+                "correct_answer": content_answer,
+                "metadata": {**common["metadata"], "ablation": "content-unique"},
+            }
+        )
 
     return identity_rows, content_rows
 

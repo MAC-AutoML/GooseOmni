@@ -10,7 +10,6 @@ from pathlib import Path
 
 import requests
 
-
 MODES = {
     "qwen2_5_omni": ("av", "video", "audio", "text"),
     "qwen3_omni": ("av", "video", "audio", "text"),

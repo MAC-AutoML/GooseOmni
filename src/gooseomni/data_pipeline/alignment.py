@@ -30,8 +30,7 @@ def _least_squares(anchors: list[Anchor]) -> tuple[float, float]:
     if variance <= 1e-9:
         raise ValueError("alignment anchors do not span time")
     covariance = sum(
-        (row.global_abs_sec - mean_x) * (row.raw_sec - mean_y)
-        for row in anchors
+        (row.global_abs_sec - mean_x) * (row.raw_sec - mean_y) for row in anchors
     )
     scale = covariance / variance
     return scale, mean_y - scale * mean_x

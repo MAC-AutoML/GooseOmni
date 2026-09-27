@@ -8,7 +8,12 @@ from typing import Any
 def write_report(run_root: str | Path, scores: dict[str, Any] | None = None) -> Path:
     root = Path(run_root)
     payload = scores or json.loads((root / "scores.json").read_text(encoding="utf-8"))
-    lines = ["# GooseOmni Evaluation Report", "", f"Benchmark: `{payload['benchmark_root']}`", ""]
+    lines = [
+        "# GooseOmni Evaluation Report",
+        "",
+        f"Benchmark: `{payload['benchmark_root']}`",
+        "",
+    ]
     lines.append(
         "| track / model / modality | teacher bias | ok | errors | skipped | parse | schema | latency(s) |"
     )

@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
-from gooseomni.benchmark.checkers import run_perspective_leakage_checker
 from gooseomni.benchmark.backends import MockBackend
+from gooseomni.benchmark.checkers import run_perspective_leakage_checker
 from gooseomni.benchmark.io import load_segments_jsonl, resolve_video_path
 from gooseomni.benchmark.pipeline import (
     abs_time,
@@ -18,7 +20,14 @@ from gooseomni.benchmark.pipeline import (
     parse_partial_json_array_objects,
     save_error,
 )
-from gooseomni.benchmark.schema import CandidateTrial, GlobalEvent, MemoryState, POVEvent, Segment, Utterance
+from gooseomni.benchmark.schema import (
+    CandidateTrial,
+    GlobalEvent,
+    MemoryState,
+    POVEvent,
+    Segment,
+    Utterance,
+)
 
 
 def _segment_row() -> dict:
@@ -46,7 +55,9 @@ def _segment_row() -> dict:
 def _write_segments_jsonl(tmp_path: Path) -> Path:
     path = tmp_path / "data" / "gooseomni" / "segments.jsonl"
     path.parent.mkdir(parents=True)
-    path.write_text(json.dumps(_segment_row(), ensure_ascii=False) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(_segment_row(), ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     return path
 
 
@@ -61,9 +72,36 @@ def test_load_segments_jsonl_reads_strict_segment(tmp_path: Path) -> None:
 
 
 def test_resolve_video_path_uses_dataset_root(tmp_path: Path) -> None:
-    path = resolve_video_path(tmp_path / "data" / "gooseomni", "videos/g001/s/Gemini.mp4")
+    path = resolve_video_path(
+        tmp_path / "data" / "gooseomni", "videos/g001/s/Gemini.mp4"
+    )
 
-    assert path == tmp_path / "data" / "gooseomni" / "videos" / "g001" / "s" / "Gemini.mp4"
+    assert (
+        path == tmp_path / "data" / "gooseomni" / "videos" / "g001" / "s" / "Gemini.mp4"
+    )
+
+
+def test_data_pipeline_config_import_does_not_load_media_runner() -> None:
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join(
+        part for part in ("src", env.get("PYTHONPATH", "")) if part
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys; import gooseomni.data_pipeline; "
+                "print('gooseomni.data_pipeline.runner' in sys.modules)"
+            ),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.stdout.strip() == "False"
 
 
 def test_local_to_abs_conversion() -> None:
@@ -115,7 +153,12 @@ def test_error_output_can_be_saved(tmp_path: Path) -> None:
 def test_resume_mode_does_not_reannotate(tmp_path: Path) -> None:
     segments = _write_segments_jsonl(tmp_path)
     output_root = tmp_path / "annotations"
-    script = Path(__file__).resolve().parents[1] / "tools" / "annotation" / "run_pov_event_annotation.py"
+    script = (
+        Path(__file__).resolve().parents[1]
+        / "tools"
+        / "annotation"
+        / "run_pov_event_annotation.py"
+    )
     base_cmd = [
         ".venv/bin/python",
         str(script),
@@ -133,7 +176,13 @@ def test_resume_mode_does_not_reannotate(tmp_path: Path) -> None:
         "Gemini",
     ]
 
-    subprocess.run(base_cmd, cwd=Path(__file__).resolve().parents[1], check=True, capture_output=True, text=True)
+    subprocess.run(
+        base_cmd,
+        cwd=Path(__file__).resolve().parents[1],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
     result = subprocess.run(
         base_cmd + ["--resume"],
         cwd=Path(__file__).resolve().parents[1],
@@ -151,7 +200,6 @@ def test_player_id_must_be_valid() -> None:
 
     with pytest.raises(ValueError, match="6 valid players|player_id"):
         Segment.model_validate(row)
-
 
 
 def test_utterance_normalization_recovers_list_time_referred() -> None:
@@ -216,7 +264,9 @@ def test_perspective_leakage_checker_flags_forbidden_id_usage() -> None:
         {
             "target_player": "saoyi",
             "evidence": "uses ge_051",
-            "forbidden_information": [{"hidden_event_id": "ge_051", "reason": "hidden"}],
+            "forbidden_information": [
+                {"hidden_event_id": "ge_051", "reason": "hidden"}
+            ],
         }
     )
 
@@ -306,7 +356,9 @@ def test_benchmark_export_and_scoring(tmp_path: Path) -> None:
     )
 
     trials = (bench / "weak" / "trials.jsonl").read_text(encoding="utf-8").splitlines()
-    scores = json.loads((bench / "reports" / "eval_scores.json").read_text(encoding="utf-8"))
+    scores = json.loads(
+        (bench / "reports" / "eval_scores.json").read_text(encoding="utf-8")
+    )
     assert len(trials) == 5
     assert scores["json_parse_success"] == 1.0
     assert scores["perspective_leakage_rate"] == 0.0

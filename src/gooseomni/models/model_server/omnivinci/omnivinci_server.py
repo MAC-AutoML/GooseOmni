@@ -1,7 +1,6 @@
 import argparse
 import os
 import shutil
-import sys
 import tempfile
 import traceback
 import warnings
@@ -9,19 +8,24 @@ from pathlib import Path
 
 from flask import Flask, jsonify, request
 
-ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 from gooseomni.config.settings import CONFIG
-from gooseomni.models.model_server.local_common.gpu_visibility import configure_cuda_visible_devices
+from gooseomni.models.model_server.local_common.gpu_visibility import (
+    configure_cuda_visible_devices,
+)
 from gooseomni.models.model_server.local_common.http import parse_infer_request
-from gooseomni.models.model_server.local_common.media_masking import create_black_frame_video
-from gooseomni.models.model_server.local_common.remote_code_cache import sync_remote_code_cache
+from gooseomni.models.model_server.local_common.media_masking import (
+    create_black_frame_video,
+)
+from gooseomni.models.model_server.local_common.remote_code_cache import (
+    sync_remote_code_cache,
+)
 from gooseomni.models.model_server.local_common.transformers_compat import (
     ensure_all_tied_weights_keys,
     ensure_transformers_no_init_weights,
 )
+
+ROOT = Path(__file__).resolve().parents[3]
+
 
 warnings.filterwarnings("ignore")
 
@@ -34,7 +38,9 @@ SPECIFIED_GPUS = configure_cuda_visible_devices(
 )
 
 # Global configuration
-MODEL_PATH = CONFIG.model("omnivinci").get("model_path") or "/publicssd/xty/models/omnivinci"
+MODEL_PATH = (
+    CONFIG.model("omnivinci").get("model_path") or "/publicssd/xty/models/omnivinci"
+)
 LOAD_AUDIO_IN_VIDEO = CONFIG.model("omnivinci").get("use_audio_in_video", True)
 NUM_VIDEO_FRAMES = CONFIG.model("omnivinci").get("num_video_frames", 256)
 AUDIO_LENGTH = "max_7200"
@@ -75,10 +81,12 @@ def load_model():
     if model_loaded:
         return
 
-    from transformers import AutoConfig, AutoModel
     import torch
+    from transformers import AutoConfig, AutoModel
 
-    print(f"Loading OmniVinci model to GPUs {os.environ.get('CUDA_VISIBLE_DEVICES')}...")
+    print(
+        f"Loading OmniVinci model to GPUs {os.environ.get('CUDA_VISIBLE_DEVICES')}..."
+    )
     sync_remote_code_cache(MODEL_PATH, "omnivinci")
 
     ensure_transformers_no_init_weights()
@@ -137,7 +145,9 @@ def run_inference(
     visual_mask: bool = False,
     temp_dir: str | None = None,
 ) -> str:
-    assert model_loaded and model is not None and processor is not None, "Model is not loaded"
+    assert model_loaded and model is not None and processor is not None, (
+        "Model is not loaded"
+    )
     inference_video_path = video_path
     if visual_mask and use_video:
         if temp_dir is None:
@@ -157,7 +167,9 @@ def run_inference(
     conversation = _build_conversation(
         inference_video_path, question, use_video, use_audio
     )
-    text = processor.apply_chat_template(conversation, tokenize=False, add_generation_prompt=True)
+    text = processor.apply_chat_template(
+        conversation, tokenize=False, add_generation_prompt=True
+    )
 
     inputs = processor([text])
 
@@ -221,7 +233,9 @@ def analyze_video():
             temp_path = os.path.join(temp_dir, payload.upload.filename)
             payload.upload.save(temp_path)
 
-        answer = run_inference(temp_path, question, use_video, use_audio, visual_mask, temp_dir)
+        answer = run_inference(
+            temp_path, question, use_video, use_audio, visual_mask, temp_dir
+        )
         return jsonify({"status": "success", "answer": answer.strip()})
     except Exception as exc:  # noqa: BLE001
         traceback.print_exc()
@@ -236,8 +250,12 @@ def analyze_video():
 
 def parse_args():
     parser = argparse.ArgumentParser(description="OmniVinci Video Analysis Server")
-    parser.add_argument("--port", type=int, default=5091, help="Server port (default: 5091)")
-    parser.add_argument("--host", default="0.0.0.0", help="Server host address (default: 0.0.0.0)")
+    parser.add_argument(
+        "--port", type=int, default=5091, help="Server port (default: 5091)"
+    )
+    parser.add_argument(
+        "--host", default="0.0.0.0", help="Server host address (default: 0.0.0.0)"
+    )
     return parser.parse_args()
 
 

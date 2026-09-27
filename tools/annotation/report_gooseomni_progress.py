@@ -1,14 +1,4 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import collections
@@ -17,28 +7,58 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-
 PLAYERS = ("Gemini", "baile", "beigang", "mojiang", "saoyi", "xiaolu")
-PLAYER_STAGES = ("pov_events", "utterances", "information_states", "memory_states", "belief_states")
+PLAYER_STAGES = (
+    "pov_events",
+    "utterances",
+    "information_states",
+    "memory_states",
+    "belief_states",
+)
 SINGLE_STAGES = ("phase_events", "global_events")
 UPSTREAM_PREFIXES = ("og-pov-", "og-utt-", "og-phase-", "og-up-")
-DOWNSTREAM_PREFIXES = ("og-glob-", "og-info-", "og-mem-", "og-belief-", "og-trial-", "og-chain-")
+DOWNSTREAM_PREFIXES = (
+    "og-glob-",
+    "og-info-",
+    "og-mem-",
+    "og-belief-",
+    "og-trial-",
+    "og-chain-",
+)
 DOWNSTREAM_PLAYER_STAGES = ("information_states", "memory_states", "belief_states")
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Report Omni Goose annotation and benchmark progress.")
+    parser = argparse.ArgumentParser(
+        description="Report Omni Goose annotation and benchmark progress."
+    )
     parser.add_argument("--dataset-root", default=Path("data/gooseomni"), type=Path)
-    parser.add_argument("--annotation-root", default=Path("runs/gooseomni_oracle_pass1/annotations"), type=Path)
-    parser.add_argument("--benchmark-root", default=Path("runs/gooseomni_oracle_pass1/benchmark"), type=Path)
-    parser.add_argument("--output", default=Path("runs/gooseomni_oracle_pass1/progress_report.json"), type=Path)
+    parser.add_argument(
+        "--annotation-root",
+        default=Path("runs/gooseomni_oracle_pass1/annotations"),
+        type=Path,
+    )
+    parser.add_argument(
+        "--benchmark-root",
+        default=Path("runs/gooseomni_oracle_pass1/benchmark"),
+        type=Path,
+    )
+    parser.add_argument(
+        "--output",
+        default=Path("runs/gooseomni_oracle_pass1/progress_report.json"),
+        type=Path,
+    )
     return parser.parse_args()
 
 
 def _jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def _count_player_files(root: Path, stage: str, segment_id: str) -> int:
@@ -111,7 +131,9 @@ def _missing_downstream_stages(row: dict[str, Any]) -> list[str]:
     return missing
 
 
-def _build_next_actions(rows: list[dict[str, Any]], active_jobs: set[str]) -> list[dict[str, Any]]:
+def _build_next_actions(
+    rows: list[dict[str, Any]], active_jobs: set[str]
+) -> list[dict[str, Any]]:
     actions: list[dict[str, Any]] = []
     for row in rows:
         missing_downstream = _missing_downstream_stages(row)
@@ -121,7 +143,9 @@ def _build_next_actions(rows: list[dict[str, Any]], active_jobs: set[str]) -> li
             actions.append(
                 {
                     "priority": 1 if active_jobs else 2,
-                    "type": "complete_downstream_chain" if active_jobs else "submit_downstream_chain",
+                    "type": "complete_downstream_chain"
+                    if active_jobs
+                    else "submit_downstream_chain",
                     "index": row["index"],
                     "segment_id": row["segment_id"],
                     "missing_stages": missing_downstream,
@@ -148,8 +172,12 @@ def main() -> None:
     segments = _jsonl(args.dataset_root / "segments.jsonl")
     active_job_list = _active_job_names()
     active_jobs = set(active_job_list)
-    candidate_rows = _jsonl(args.annotation_root / "candidate_trials" / "g001_candidate_trials.jsonl")
-    candidate_counts = collections.Counter(row.get("segment_id") for row in candidate_rows)
+    candidate_rows = _jsonl(
+        args.annotation_root / "candidate_trials" / "g001_candidate_trials.jsonl"
+    )
+    candidate_counts = collections.Counter(
+        row.get("segment_id") for row in candidate_rows
+    )
     trials = _jsonl(args.benchmark_root / "weak" / "trials.jsonl")
     review = _jsonl(args.benchmark_root / "human_review_queue.jsonl")
 
@@ -164,11 +192,20 @@ def main() -> None:
             item[stage] = int(_single_exists(args.annotation_root, stage, segment_id))
         item["candidate_trials"] = candidate_counts.get(segment_id, 0)
         item["downstream_marker"] = int(
-            (args.annotation_root / "job_markers" / "downstream" / f"{segment_id}.json").exists()
+            (
+                args.annotation_root
+                / "job_markers"
+                / "downstream"
+                / f"{segment_id}.json"
+            ).exists()
         )
         segment_index = _segment_index(segment_id)
-        item["active_upstream_jobs"] = _active_jobs_for_segment(active_jobs, segment_index, UPSTREAM_PREFIXES)
-        item["active_downstream_jobs"] = _active_jobs_for_segment(active_jobs, segment_index, DOWNSTREAM_PREFIXES)
+        item["active_upstream_jobs"] = _active_jobs_for_segment(
+            active_jobs, segment_index, UPSTREAM_PREFIXES
+        )
+        item["active_downstream_jobs"] = _active_jobs_for_segment(
+            active_jobs, segment_index, DOWNSTREAM_PREFIXES
+        )
         item["upstream_complete"] = (
             item["pov_events"] == len(PLAYERS)
             and item["utterances"] == len(PLAYERS)
@@ -181,8 +218,14 @@ def main() -> None:
             and item["belief_states"] == len(PLAYERS)
             and item["candidate_trials"] > 0
         )
-        item["ready_for_global"] = item["upstream_complete"] and not item["global_events"]
-        item["ready_unsubmitted"] = item["ready_for_global"] and not item["downstream_marker"] and not item["active_downstream_jobs"]
+        item["ready_for_global"] = (
+            item["upstream_complete"] and not item["global_events"]
+        )
+        item["ready_unsubmitted"] = (
+            item["ready_for_global"]
+            and not item["downstream_marker"]
+            and not item["active_downstream_jobs"]
+        )
         item["missing_upstream_stages"] = _missing_upstream_stages(item)
         item["missing_downstream_stages"] = _missing_downstream_stages(item)
         rows.append(item)
@@ -206,7 +249,9 @@ def main() -> None:
         "segments": rows,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    args.output.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     md_path = args.output.with_suffix(".md")
     md_lines = [
         "# Omni Goose Progress",
@@ -234,8 +279,8 @@ def main() -> None:
     md_lines.extend(
         [
             "",
-        "| idx | segment_id | pov | utt | phase | global | info | memory | belief | trials | marker | active_upstream | active_downstream |",
-        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
+            "| idx | segment_id | pov | utt | phase | global | info | memory | belief | trials | marker | active_upstream | active_downstream |",
+            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
         ]
     )
     for row in rows:
@@ -254,7 +299,9 @@ def main() -> None:
 
 def _active_job_names() -> list[str]:
     try:
-        result = subprocess.run(["squeue", "-h", "-o", "%j"], check=True, capture_output=True, text=True)
+        result = subprocess.run(
+            ["squeue", "-h", "-o", "%j"], check=True, capture_output=True, text=True
+        )
     except Exception:
         return []
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]

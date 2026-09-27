@@ -160,7 +160,11 @@ def _subtract_ranges(
 def _parent_clips(path: Path) -> list[dict[str, Any]]:
     if not path.is_file():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line
+    ]
 
 
 def _find_parent(
@@ -186,10 +190,28 @@ def _extract_av_clip(
 ) -> None:
     subprocess.run(
         [
-            "ffmpeg", "-nostdin", "-v", "error", "-ss", f"{raw_start:.6f}",
-            "-i", str(source), "-t", f"{duration:.6f}", "-map", "0:v:0",
-            "-map", "0:a:0?", "-c:v", "mpeg4", "-q:v", "5", "-c:a", "aac",
-            "-y", str(target),
+            "ffmpeg",
+            "-nostdin",
+            "-v",
+            "error",
+            "-ss",
+            f"{raw_start:.6f}",
+            "-i",
+            str(source),
+            "-t",
+            f"{duration:.6f}",
+            "-map",
+            "0:v:0",
+            "-map",
+            "0:a:0?",
+            "-c:v",
+            "mpeg4",
+            "-q:v",
+            "5",
+            "-c:a",
+            "aac",
+            "-y",
+            str(target),
         ],
         check=True,
     )
@@ -200,8 +222,14 @@ def _extract_av_clip(
 def _has_av_streams(path: Path) -> bool:
     completed = subprocess.run(
         [
-            "ffprobe", "-v", "error", "-show_entries", "stream=codec_type",
-            "-of", "json", str(path),
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "stream=codec_type",
+            "-of",
+            "json",
+            str(path),
         ],
         check=False,
         capture_output=True,

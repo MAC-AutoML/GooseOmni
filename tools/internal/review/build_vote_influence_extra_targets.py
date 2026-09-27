@@ -3,11 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
-import sys
 from pathlib import Path
 from typing import Any
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from gooseomni.benchmark.decrypto_diagnostics import (  # noqa: E402
     PLAYERS,
@@ -18,10 +15,17 @@ from gooseomni.benchmark.decrypto_diagnostics import (  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build vote-influence target expansions from reviewed anchor/claim pairs.")
+    parser = argparse.ArgumentParser(
+        description="Build vote-influence target expansions from reviewed anchor/claim pairs."
+    )
     parser.add_argument("--input-pass-root", type=Path, required=True)
     parser.add_argument("--output-pass-root", type=Path, required=True)
-    parser.add_argument("--spec", action="append", required=True, help="event_id:claim_id:target[,target...]")
+    parser.add_argument(
+        "--spec",
+        action="append",
+        required=True,
+        help="event_id:claim_id:target[,target...]",
+    )
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
 
@@ -39,7 +43,9 @@ def parse_spec(value: str) -> tuple[str, str, list[str]]:
     return event_id, claim_id, target_list
 
 
-def make_group(idx: int, event: dict[str, Any], claim: dict[str, Any], target: str) -> dict[str, Any]:
+def make_group(
+    idx: int, event: dict[str, Any], claim: dict[str, Any], target: str
+) -> dict[str, Any]:
     event_id = event["world_event_id"]
     claim_id = claim["claim_id"]
     cutoff = float(claim["abs_end_sec"]) + 2.0
@@ -112,7 +118,9 @@ def main() -> None:
             if target == speaker:
                 raise SystemExit(f"target cannot be speaker for vote influence: {spec}")
             if target not in claim.get("heard_by", []):
-                raise SystemExit(f"target did not hear claim: {target} claim={claim_id}")
+                raise SystemExit(
+                    f"target did not hear claim: {target} claim={claim_id}"
+                )
             groups.append(make_group(len(groups) + 1, event, claim, target))
 
     diagnostics = args.output_pass_root / "annotations" / "diagnostics"
@@ -138,10 +146,21 @@ def main() -> None:
         quality_rows.append(quality)
 
     write_jsonl(diagnostics / "probe_groups.jsonl", groups)
-    write_jsonl(diagnostics / "probes_A_pre_reveal.jsonl", probes_by_type["A_pre_reveal_belief"])
-    write_jsonl(diagnostics / "probes_B_reconstruct.jsonl", probes_by_type["B_post_reveal_reconstruct_previous_belief"])
-    write_jsonl(diagnostics / "probes_C_false_belief.jsonl", probes_by_type["C_other_agent_false_belief"])
-    write_jsonl(diagnostics / "probes_D_perspective_taking.jsonl", probes_by_type["D_perspective_taking_prediction"])
+    write_jsonl(
+        diagnostics / "probes_A_pre_reveal.jsonl", probes_by_type["A_pre_reveal_belief"]
+    )
+    write_jsonl(
+        diagnostics / "probes_B_reconstruct.jsonl",
+        probes_by_type["B_post_reveal_reconstruct_previous_belief"],
+    )
+    write_jsonl(
+        diagnostics / "probes_C_false_belief.jsonl",
+        probes_by_type["C_other_agent_false_belief"],
+    )
+    write_jsonl(
+        diagnostics / "probes_D_perspective_taking.jsonl",
+        probes_by_type["D_perspective_taking_prediction"],
+    )
     write_jsonl(diagnostics / "hidden_gold.jsonl", hidden_gold)
     write_jsonl(diagnostics / "diagnostic_quality.jsonl", quality_rows)
     print(

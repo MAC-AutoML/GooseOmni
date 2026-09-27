@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 PROMPT_TEMPLATE = """TASK: gooseomni_meeting_claim_audio_confirmation_v1
 
 You are doing a narrow second-pass audio/video confirmation for a paper-grade GooseOmni Theory-of-Mind benchmark.
@@ -76,17 +75,26 @@ Return strict JSON only:
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
 
 
 def build_task(row: dict[str, Any]) -> dict[str, Any]:
@@ -125,7 +133,9 @@ def build_task(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build Qwen audio-confirmation pack for strict meeting-claim candidates.")
+    parser = argparse.ArgumentParser(
+        description="Build Qwen audio-confirmation pack for strict meeting-claim candidates."
+    )
     parser.add_argument("--audio-confirmation-queue", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--limit", type=int, default=None)
@@ -135,15 +145,23 @@ def main() -> None:
     if args.limit is not None:
         rows = rows[: args.limit]
     tasks = [build_task(row) for row in rows]
-    write_jsonl(args.output_root / "meeting_claim_audio_confirmation_queue.jsonl", tasks)
-    (args.output_root / "meeting_claim_audio_confirmation_prompt.md").write_text(PROMPT_TEMPLATE, encoding="utf-8")
+    write_jsonl(
+        args.output_root / "meeting_claim_audio_confirmation_queue.jsonl", tasks
+    )
+    (args.output_root / "meeting_claim_audio_confirmation_prompt.md").write_text(
+        PROMPT_TEMPLATE, encoding="utf-8"
+    )
     summary = {
         "ok": True,
         "source_audio_confirmation_queue": args.audio_confirmation_queue.as_posix(),
         "output_root": args.output_root.as_posix(),
         "tasks": len(tasks),
-        "prompt": (args.output_root / "meeting_claim_audio_confirmation_prompt.md").as_posix(),
-        "queue": (args.output_root / "meeting_claim_audio_confirmation_queue.jsonl").as_posix(),
+        "prompt": (
+            args.output_root / "meeting_claim_audio_confirmation_prompt.md"
+        ).as_posix(),
+        "queue": (
+            args.output_root / "meeting_claim_audio_confirmation_queue.jsonl"
+        ).as_posix(),
         "promotion_to_human_verified_gold": False,
     }
     write_json(args.output_root / "summary.json", summary)

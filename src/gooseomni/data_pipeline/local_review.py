@@ -153,7 +153,9 @@ def _model_verified(value: Any) -> Any:
 def merge_review_shards(review_root: Path, output_path: Path) -> dict[str, Any]:
     manifest_path = review_root / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    missing = [row["output"] for row in manifest["shards"] if not Path(row["output"]).is_file()]
+    missing = [
+        row["output"] for row in manifest["shards"] if not Path(row["output"]).is_file()
+    ]
     if missing:
         return {"complete": False, "validated": 0, "missing_outputs": missing}
     merged = []
@@ -176,12 +178,16 @@ def merge_review_shards(review_root: Path, output_path: Path) -> dict[str, Any]:
             evidence = [str(value) for value in decision.get("evidence_ids", [])]
             allowed = set(candidates[trial_id]["available_evidence_ids"])
             if set(evidence) - allowed:
-                raise ValueError(f"review cites evidence outside allow-list: {trial_id}")
+                raise ValueError(
+                    f"review cites evidence outside allow-list: {trial_id}"
+                )
             raw_final = decision.get("final_value")
             final = None
             if action == "repair":
                 if not isinstance(raw_final, str):
-                    raise ValueError(f"repair requires JSON-string final_value: {trial_id}")
+                    raise ValueError(
+                        f"repair requires JSON-string final_value: {trial_id}"
+                    )
                 try:
                     final = json.loads(raw_final)
                 except json.JSONDecodeError as exc:
@@ -359,7 +365,9 @@ def apply_local_review(
     if not isinstance(decisions, list):
         raise ValueError("Codex response must contain a decisions array")
     response_ids = [str(row.get("id")) for row in decisions]
-    if len(response_ids) != len(set(response_ids)) or set(response_ids) != set(candidates):
+    if len(response_ids) != len(set(response_ids)) or set(response_ids) != set(
+        candidates
+    ):
         raise ValueError("Codex response must cover every queue item exactly once")
     validated = []
     for row in decisions:
@@ -373,12 +381,16 @@ def apply_local_review(
             for value in candidates[identifier].get("available_evidence_ids", [])
         }
         if set(evidence) - allowed:
-            raise ValueError(f"decision cites evidence outside allow-list: {identifier}")
+            raise ValueError(
+                f"decision cites evidence outside allow-list: {identifier}"
+            )
         final_value_raw = row.get("final_value")
         final_value = None
         if decision == "repair":
             if not isinstance(final_value_raw, str):
-                raise ValueError(f"repair requires JSON-string final_value: {identifier}")
+                raise ValueError(
+                    f"repair requires JSON-string final_value: {identifier}"
+                )
             try:
                 final_value = json.loads(final_value_raw)
             except json.JSONDecodeError as exc:
@@ -386,7 +398,9 @@ def apply_local_review(
                     f"repair final_value is not valid JSON: {identifier}"
                 ) from exc
             if not isinstance(final_value, dict):
-                raise ValueError(f"repair final_value must decode to object: {identifier}")
+                raise ValueError(
+                    f"repair final_value must decode to object: {identifier}"
+                )
         if decision != "repair" and final_value_raw is not None:
             raise ValueError(f"non-repair final_value must be null: {identifier}")
         validated.append(

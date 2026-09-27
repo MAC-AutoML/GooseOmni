@@ -1,15 +1,4 @@
-#!/usr/bin/env python3
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import json
@@ -21,6 +10,8 @@ from typing import Any
 from zipfile import ZipFile
 
 from openpyxl import load_workbook
+
+#!/usr/bin/env python3
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -101,14 +92,18 @@ def _video_id(value: Any) -> int | None:
         return None
 
 
-def _build_sample(row: tuple[Any, ...], indexes: dict[str, int], prefix: str, language_group: str) -> dict[str, Any] | None:
+def _build_sample(
+    row: tuple[Any, ...], indexes: dict[str, int], prefix: str, language_group: str
+) -> dict[str, Any] | None:
     source_video_id = _video_id(_cell(row, indexes, "video_id"))
     if source_video_id is None:
         return None
 
     correct_answer = _clean_text(_cell(row, indexes, "correct_answer")).upper()
     if correct_answer not in {"A", "B"}:
-        raise ValueError(f"{prefix}/{source_video_id}: invalid correct_answer={correct_answer!r}")
+        raise ValueError(
+            f"{prefix}/{source_video_id}: invalid correct_answer={correct_answer!r}"
+        )
 
     q1 = {
         "question": _clean_text(_cell(row, indexes, "question_1")),
@@ -142,7 +137,9 @@ def _build_sample(row: tuple[Any, ...], indexes: dict[str, int], prefix: str, la
     }
 
 
-def _read_package(zip_path: Path, spec: dict[str, str], videos_dir: Path) -> list[dict[str, Any]]:
+def _read_package(
+    zip_path: Path, spec: dict[str, str], videos_dir: Path
+) -> list[dict[str, Any]]:
     samples: list[dict[str, Any]] = []
     with TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
@@ -150,24 +147,36 @@ def _read_package(zip_path: Path, spec: dict[str, str], videos_dir: Path) -> lis
             names = archive.namelist()
             xlsx_names = [name for name in names if name.lower().endswith(".xlsx")]
             if len(xlsx_names) != 1:
-                raise ValueError(f"{zip_path}: expected exactly one xlsx, got {xlsx_names}")
+                raise ValueError(
+                    f"{zip_path}: expected exactly one xlsx, got {xlsx_names}"
+                )
             xlsx_path = tmp_dir / xlsx_names[0]
             archive.extract(xlsx_names[0], tmp_dir)
 
             sheet = load_workbook(xlsx_path, data_only=True).active
-            headers = [cell.value for cell in next(sheet.iter_rows(min_row=1, max_row=1))]
+            headers = [
+                cell.value for cell in next(sheet.iter_rows(min_row=1, max_row=1))
+            ]
             indexes = _header_map(headers)
 
             for row in sheet.iter_rows(min_row=2, values_only=True):
-                sample = _build_sample(row, indexes, spec["prefix"], spec["language_group"])
+                sample = _build_sample(
+                    row, indexes, spec["prefix"], spec["language_group"]
+                )
                 if sample is None:
                     continue
                 source_video = next(
-                    (name for name in names if name.endswith(f"/{sample['source_video_id']}.mp4")),
+                    (
+                        name
+                        for name in names
+                        if name.endswith(f"/{sample['source_video_id']}.mp4")
+                    ),
                     None,
                 )
                 if source_video is None:
-                    raise FileNotFoundError(f"{zip_path}: missing video {sample['source_video_id']}.mp4")
+                    raise FileNotFoundError(
+                        f"{zip_path}: missing video {sample['source_video_id']}.mp4"
+                    )
                 target_video = videos_dir / sample["video_file"]
                 with archive.open(source_video) as src, target_video.open("wb") as dst:
                     shutil.copyfileobj(src, dst)
@@ -194,12 +203,16 @@ def prepare(input_dir: Path, output_dir: Path) -> Path:
         "data": samples,
     }
     output_path = output_dir / "annotations.json"
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    output_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     return output_path
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Prepare extended Level 2 multilingual data")
+    parser = argparse.ArgumentParser(
+        description="Prepare extended Level 2 multilingual data"
+    )
     parser.add_argument("--input-dir", type=Path, default=DEFAULT_INPUT_DIR)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     return parser.parse_args()

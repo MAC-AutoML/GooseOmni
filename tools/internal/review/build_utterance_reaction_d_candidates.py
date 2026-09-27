@@ -7,7 +7,6 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-
 PLAYERS = ["Gemini", "baile", "beigang", "mojiang", "saoyi", "xiaolu"]
 PUBLIC_MIN_HEARD = 4
 CLAIM_TYPES = {"accusation", "defense", "location", "sighting"}
@@ -19,12 +18,19 @@ MAX_GAP_SEC = 120.0
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
 
 
 def clip_bounds(path: Path, player: str) -> tuple[float, float] | None:
@@ -49,16 +55,31 @@ def find_clip(clip_root: Path, player: str, abs_sec: float) -> Path | None:
     return sorted(matches, key=lambda item: item[0])[0][1] if matches else None
 
 
-def extract_frame(video: Path, player: str, abs_sec: float, output: Path) -> dict[str, Any]:
+def extract_frame(
+    video: Path, player: str, abs_sec: float, output: Path
+) -> dict[str, Any]:
     bounds = clip_bounds(video, player)
     if not bounds:
-        return {"ok": False, "reason": "cannot_parse_clip_bounds", "video": video.as_posix()}
+        return {
+            "ok": False,
+            "reason": "cannot_parse_clip_bounds",
+            "video": video.as_posix(),
+        }
     local_sec = max(0.0, abs_sec - bounds[0])
     output.parent.mkdir(parents=True, exist_ok=True)
     proc = subprocess.run(
-        ["ffmpeg", "-y", "-ss", f"{local_sec:.3f}", "-i", video.as_posix(), "-frames:v", "1", output.as_posix()],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        [
+            "ffmpeg",
+            "-y",
+            "-ss",
+            f"{local_sec:.3f}",
+            "-i",
+            video.as_posix(),
+            "-frames:v",
+            "1",
+            output.as_posix(),
+        ],
+        capture_output=True,
         text=True,
     )
     return {
@@ -72,12 +93,37 @@ def extract_frame(video: Path, player: str, abs_sec: float, output: Path) -> dic
 
 
 def is_public_claim(claim: dict[str, Any]) -> bool:
-    return claim.get("speaker") in PLAYERS and len(claim.get("heard_by", [])) >= PUBLIC_MIN_HEARD
+    return (
+        claim.get("speaker") in PLAYERS
+        and len(claim.get("heard_by", [])) >= PUBLIC_MIN_HEARD
+    )
 
 
 def text_score(text: str) -> int:
     score = 0
-    for token in ["不是", "为什么", "你", "他", "她", "谁", "投", "票", "刀", "杀", "看到", "看见", "没有", "没", "好人", "坏", "鸭", "鹅", "骗", "怀疑", "在哪"]:
+    for token in [
+        "不是",
+        "为什么",
+        "你",
+        "他",
+        "她",
+        "谁",
+        "投",
+        "票",
+        "刀",
+        "杀",
+        "看到",
+        "看见",
+        "没有",
+        "没",
+        "好人",
+        "坏",
+        "鸭",
+        "鹅",
+        "骗",
+        "怀疑",
+        "在哪",
+    ]:
         if token in text:
             score += 1
     return score
@@ -86,14 +132,20 @@ def text_score(text: str) -> int:
 def reaction_action(reaction: dict[str, Any]) -> str:
     claim_type = reaction.get("claim_type")
     text = str(reaction.get("content", ""))
-    if claim_type == "defense" or any(token in text for token in ["不是我", "我没", "我没有", "我一直", "我也在"]):
+    if claim_type == "defense" or any(
+        token in text for token in ["不是我", "我没", "我没有", "我一直", "我也在"]
+    ):
         return "defend"
-    if claim_type == "accusation" or any(token in text for token in ["刀", "杀", "投", "票", "怀疑", "骗"]):
+    if claim_type == "accusation" or any(
+        token in text for token in ["刀", "杀", "投", "票", "怀疑", "骗"]
+    ):
         return "accuse"
     return "respond"
 
 
-def build_candidates(ledger_root: Path, clip_root: Path, output_root: Path, limit: int) -> list[dict[str, Any]]:
+def build_candidates(
+    ledger_root: Path, clip_root: Path, output_root: Path, limit: int
+) -> list[dict[str, Any]]:
     claims = read_jsonl(ledger_root / "claims.jsonl")
     candidates: list[dict[str, Any]] = []
     for claim in claims:
@@ -119,14 +171,28 @@ def build_candidates(ledger_root: Path, clip_root: Path, output_root: Path, limi
             gap = reaction_start - claim_end
             if not (MIN_GAP_SEC <= gap <= MAX_GAP_SEC):
                 continue
-            same_phase = bool(set(claim.get("source_segment_ids", [])) & set(reaction.get("source_segment_ids", [])))
+            same_phase = bool(
+                set(claim.get("source_segment_ids", []))
+                & set(reaction.get("source_segment_ids", []))
+            )
             if not same_phase and gap > 80:
                 continue
             candidate_id = f"dur_{len(candidates) + 1:06d}_{claim['claim_id']}_{reaction['claim_id']}_{listener}"
             claim_frame_player = listener
-            reaction_frame_player = next((p for p in reaction.get("heard_by", []) if p in PLAYERS and p != listener), listener)
+            reaction_frame_player = next(
+                (
+                    p
+                    for p in reaction.get("heard_by", [])
+                    if p in PLAYERS and p != listener
+                ),
+                listener,
+            )
             claim_clip = find_clip(clip_root, claim_frame_player, claim_end)
-            reaction_clip = find_clip(clip_root, reaction_frame_player, float(reaction.get("abs_end_sec", reaction_start)))
+            reaction_clip = find_clip(
+                clip_root,
+                reaction_frame_player,
+                float(reaction.get("abs_end_sec", reaction_start)),
+            )
             row = {
                 "candidate_id": candidate_id,
                 "game_id": claim.get("game_id", "g001"),
@@ -160,7 +226,14 @@ def build_candidates(ledger_root: Path, clip_root: Path, output_root: Path, limi
                 "reaction_clip": reaction_clip.as_posix() if reaction_clip else None,
             }
             candidates.append(row)
-    selected = sorted(candidates, key=lambda row: (-int(row["same_source_segment"]), row["gap_sec"], -row["cue_score"]))[:limit]
+    selected = sorted(
+        candidates,
+        key=lambda row: (
+            -int(row["same_source_segment"]),
+            row["gap_sec"],
+            -row["cue_score"],
+        ),
+    )[:limit]
     assets = output_root / "review_assets"
     for row in selected:
         if row.get("claim_clip"):
@@ -181,7 +254,9 @@ def build_candidates(ledger_root: Path, clip_root: Path, output_root: Path, limi
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build D perspective-taking behavior candidates from later listener utterances.")
+    parser = argparse.ArgumentParser(
+        description="Build D perspective-taking behavior candidates from later listener utterances."
+    )
     parser.add_argument("--ledger-root", type=Path, required=True)
     parser.add_argument("--clip-root", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
@@ -191,16 +266,24 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    rows = build_candidates(args.ledger_root, args.clip_root, args.output_root, args.limit)
+    rows = build_candidates(
+        args.ledger_root, args.clip_root, args.output_root, args.limit
+    )
     write_jsonl(args.output_root / "utterance_reaction_d_candidates.jsonl", rows)
     summary = {
         "ok": True,
         "output_root": args.output_root.as_posix(),
         "candidates": len(rows),
-        "with_claim_frame": sum(1 for row in rows if row.get("claim_frame", {}).get("ok")),
-        "with_reaction_frame": sum(1 for row in rows if row.get("reaction_frame", {}).get("ok")),
+        "with_claim_frame": sum(
+            1 for row in rows if row.get("claim_frame", {}).get("ok")
+        ),
+        "with_reaction_frame": sum(
+            1 for row in rows if row.get("reaction_frame", {}).get("ok")
+        ),
     }
-    (args.output_root / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (args.output_root / "summary.json").write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 

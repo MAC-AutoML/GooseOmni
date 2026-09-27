@@ -1,14 +1,4 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import json
@@ -37,9 +27,20 @@ PUBLIC_EVENT_TYPES = {
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Normalize gameplay-aware Omni Goose phase annotations before release.")
-    parser.add_argument("--root", type=Path, required=True, help="Annotation root, e.g. phase_annotations/annotations/g001")
-    parser.add_argument("--write", action="store_true", help="Write normalized JSON files. Without this, only report.")
+    parser = argparse.ArgumentParser(
+        description="Normalize gameplay-aware Omni Goose phase annotations before release."
+    )
+    parser.add_argument(
+        "--root",
+        type=Path,
+        required=True,
+        help="Annotation root, e.g. phase_annotations/annotations/g001",
+    )
+    parser.add_argument(
+        "--write",
+        action="store_true",
+        help="Write normalized JSON files. Without this, only report.",
+    )
     return parser.parse_args()
 
 
@@ -82,15 +83,22 @@ def parse_raw_response(raw: Any) -> dict[str, Any] | None:
     return None
 
 
-def normalize_timed_event(event: dict[str, Any], aligned_start: float, aligned_end: float, duration: float) -> tuple[bool, str]:
+def normalize_timed_event(
+    event: dict[str, Any], aligned_start: float, aligned_end: float, duration: float
+) -> tuple[bool, str]:
     local_start = as_float(event.get("local_start_sec"))
     local_end = as_float(event.get("local_end_sec"))
     if local_start is None or local_end is None:
         return False, "missing_time"
 
     eps = 0.05
-    local_ok = -eps <= local_start <= duration + eps and -eps <= local_end <= duration + eps
-    abs_ok = aligned_start - eps <= local_start <= aligned_end + eps and aligned_start - eps <= local_end <= aligned_end + eps
+    local_ok = (
+        -eps <= local_start <= duration + eps and -eps <= local_end <= duration + eps
+    )
+    abs_ok = (
+        aligned_start - eps <= local_start <= aligned_end + eps
+        and aligned_start - eps <= local_end <= aligned_end + eps
+    )
 
     if local_ok:
         abs_start = aligned_start + local_start
@@ -108,7 +116,10 @@ def normalize_timed_event(event: dict[str, Any], aligned_start: float, aligned_e
     if abs_end < abs_start:
         abs_start, abs_end = abs_end, abs_start
         reason = "swapped_time_order"
-    if abs_end - abs_start < 0.1 and aligned_start - eps <= abs_start <= aligned_end + eps:
+    if (
+        abs_end - abs_start < 0.1
+        and aligned_start - eps <= abs_start <= aligned_end + eps
+    ):
         abs_end = min(aligned_end, abs_start + 1.0)
         if abs_end - abs_start < 0.1:
             abs_start = max(aligned_start, abs_end - 1.0)
@@ -147,7 +158,9 @@ def ensure_gameplay_source_fields(event: dict[str, Any], phase_type: str) -> boo
         event["speech_claim"] = False
         changed = True
     if "public_result" not in event:
-        event["public_result"] = phase_type == "meeting" or event_type in PUBLIC_EVENT_TYPES
+        event["public_result"] = (
+            phase_type == "meeting" or event_type in PUBLIC_EVENT_TYPES
+        )
         changed = True
     if "inferred_belief" not in event:
         event["inferred_belief"] = False
@@ -193,11 +206,21 @@ def normalize_leakage_risk(question: dict[str, Any]) -> tuple[bool, str]:
     return changed, normalized
 
 
-def fallback_gameplay_trace(obj: dict[str, Any], duration: float, aligned_start: float) -> dict[str, Any]:
-    status = obj.get("player_status") if isinstance(obj.get("player_status"), dict) else {}
-    memory = obj.get("private_memory") if isinstance(obj.get("private_memory"), list) else []
+def fallback_gameplay_trace(
+    obj: dict[str, Any], duration: float, aligned_start: float
+) -> dict[str, Any]:
+    status = (
+        obj.get("player_status") if isinstance(obj.get("player_status"), dict) else {}
+    )
+    memory = (
+        obj.get("private_memory") if isinstance(obj.get("private_memory"), list) else []
+    )
     memory0 = memory[0] if memory and isinstance(memory[0], dict) else {}
-    evidence = status.get("death_evidence") or memory0.get("evidence") or "Qwen annotation had empty gameplay_trace; fallback status event requires review."
+    evidence = (
+        status.get("death_evidence")
+        or memory0.get("evidence")
+        or "Qwen annotation had empty gameplay_trace; fallback status event requires review."
+    )
     description = memory0.get("description") or evidence
     local_end = min(duration, 5.0) if duration > 5.0 else duration
     return {
@@ -205,7 +228,9 @@ def fallback_gameplay_trace(obj: dict[str, Any], duration: float, aligned_start:
         "local_end_sec": rounded(local_end),
         "abs_start_sec": rounded(aligned_start),
         "abs_end_sec": rounded(aligned_start + local_end),
-        "event_type": "spectator_or_status_observation" if status.get("alive_state") == "dead" else "visible_gameplay_status",
+        "event_type": "spectator_or_status_observation"
+        if status.get("alive_state") == "dead"
+        else "visible_gameplay_status",
         "location": "unknown",
         "visible_players": [],
         "actor": obj.get("player_id", "unknown"),
@@ -236,14 +261,27 @@ def normalize_file(path: Path) -> tuple[dict[str, int], bool]:
     }
     changed = False
 
-    aligned_start = float(obj.get("aligned_start_sec", obj.get("time", {}).get("aligned_start_sec", 0.0)))
-    aligned_end = float(obj.get("aligned_end_sec", obj.get("time", {}).get("aligned_end_sec", aligned_start)))
-    duration = float(obj.get("duration_sec", obj.get("time", {}).get("duration_sec", aligned_end - aligned_start)))
+    aligned_start = float(
+        obj.get("aligned_start_sec", obj.get("time", {}).get("aligned_start_sec", 0.0))
+    )
+    aligned_end = float(
+        obj.get(
+            "aligned_end_sec", obj.get("time", {}).get("aligned_end_sec", aligned_start)
+        )
+    )
+    duration = float(
+        obj.get(
+            "duration_sec",
+            obj.get("time", {}).get("duration_sec", aligned_end - aligned_start),
+        )
+    )
     phase_type = str(obj.get("phase_type", "unknown"))
 
     if phase_type == "meeting" and not obj.get("utterances"):
         raw_obj = parse_raw_response(obj.get("raw_response"))
-        raw_utterances = raw_obj.get("utterances") if isinstance(raw_obj, dict) else None
+        raw_utterances = (
+            raw_obj.get("utterances") if isinstance(raw_obj, dict) else None
+        )
         if isinstance(raw_utterances, list) and raw_utterances:
             obj["utterances"] = raw_utterances
             add_review_reason(obj, "utterances_restored_from_raw_response")
@@ -260,7 +298,9 @@ def normalize_file(path: Path) -> tuple[dict[str, int], bool]:
             if not isinstance(event, dict):
                 changed = True
                 continue
-            ok, reason = normalize_timed_event(event, aligned_start, aligned_end, duration)
+            ok, reason = normalize_timed_event(
+                event, aligned_start, aligned_end, duration
+            )
             if not ok:
                 stats["events_removed_outside"] += 1
                 changed = True
@@ -271,7 +311,9 @@ def normalize_file(path: Path) -> tuple[dict[str, int], bool]:
             else:
                 stats["events_converted_abs"] += 1
                 changed = True
-            if collection == "gameplay_trace" and ensure_gameplay_source_fields(event, phase_type):
+            if collection == "gameplay_trace" and ensure_gameplay_source_fields(
+                event, phase_type
+            ):
                 stats["source_fields_added"] += 1
                 changed = True
             if collection == "utterances" and ensure_utterance_fields(event):
@@ -286,13 +328,20 @@ def normalize_file(path: Path) -> tuple[dict[str, int], bool]:
         stats["fallback_gameplay_trace_added"] += 1
         changed = True
 
-    for question in obj.get("tom_questions", []) if isinstance(obj.get("tom_questions"), list) else []:
+    for question in (
+        obj.get("tom_questions", [])
+        if isinstance(obj.get("tom_questions"), list)
+        else []
+    ):
         if not isinstance(question, dict):
             continue
         risk_changed, risk = normalize_leakage_risk(question)
         if risk_changed:
             changed = True
-        if risk in {"medium", "high"} and question.get("needs_human_review") is not True:
+        if (
+            risk in {"medium", "high"}
+            and question.get("needs_human_review") is not True
+        ):
             question["needs_human_review"] = True
             add_review_reason(obj, "medium_high_leakage_question")
             stats["leakage_review_marked"] += 1
@@ -303,7 +352,9 @@ def normalize_file(path: Path) -> tuple[dict[str, int], bool]:
             "event_times": "local_start_sec/local_end_sec are local to this phase; abs_start_sec/abs_end_sec are aligned game seconds.",
             "source_fields": SOURCE_KEYS,
         }
-        path.write_text(json.dumps(obj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        path.write_text(
+            json.dumps(obj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
     return stats, changed
 
 
@@ -323,7 +374,13 @@ def main() -> None:
         if changed:
             changed_paths.append(path.as_posix())
     totals["changed_files"] = len(changed_paths)
-    print(json.dumps({"stats": totals, "changed_paths": changed_paths[:50]}, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {"stats": totals, "changed_paths": changed_paths[:50]},
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

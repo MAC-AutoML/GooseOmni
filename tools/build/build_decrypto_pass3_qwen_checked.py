@@ -1,28 +1,14 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import collections
 import json
 import re
 import shutil
-import sys
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 from gooseomni.benchmark.decrypto_diagnostics import write_json, write_jsonl
-
 
 PROBE_FILES = [
     "probes_A_pre_reveal.jsonl",
@@ -47,7 +33,9 @@ RED_FLAG_PATTERNS = [
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build pass3_qwen_checked with a conservative Qwen-review merge gate.")
+    parser = argparse.ArgumentParser(
+        description="Build pass3_qwen_checked with a conservative Qwen-review merge gate."
+    )
     parser.add_argument("--input-pass-root", type=Path, required=True)
     parser.add_argument("--qwen-results-root", type=Path, required=True)
     parser.add_argument("--output-pass-root", type=Path, required=True)
@@ -58,7 +46,11 @@ def parse_args() -> argparse.Namespace:
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -87,8 +79,14 @@ def prompt_texts(parsed: dict[str, Any]) -> dict[str, str]:
     for item in parsed.get("corrected_prompts") or []:
         if not isinstance(item, dict):
             continue
-        key = str(item.get("prompt_id") or item.get("probe_type") or next(iter(item.keys()), "unknown"))
-        text = compact_text(item.get("prompt") or item.get("prompt_text") or item.get("content") or item)
+        key = str(
+            item.get("prompt_id")
+            or item.get("probe_type")
+            or next(iter(item.keys()), "unknown")
+        )
+        text = compact_text(
+            item.get("prompt") or item.get("prompt_text") or item.get("content") or item
+        )
         if key in {"A", "A_pre_reveal_belief"}:
             texts["A"] = text
         elif key in {"B", "B_post_reveal_reconstruct_previous_belief"}:
@@ -107,7 +105,11 @@ def hidden_description_leaked(parsed: dict[str, Any]) -> bool:
         return True
     if "QUERY_VARIABLE_PUBLIC_FORM_JSON" not in a_text:
         return True
-    event = parsed.get("corrected_event") if isinstance(parsed.get("corrected_event"), dict) else {}
+    event = (
+        parsed.get("corrected_event")
+        if isinstance(parsed.get("corrected_event"), dict)
+        else {}
+    )
     description = str(event.get("description") or "").strip()
     if description and description in a_text:
         return True
@@ -156,7 +158,11 @@ def promote_rows(
     src_diag = pass_root / "annotations" / "diagnostics"
     dst_diag = output_root / "annotations" / "diagnostics"
     dst_diag.mkdir(parents=True, exist_ok=True)
-    accepted_by_group = {row["probe_group_id"]: row for row in gate_rows if row.get("gate_decision") == "accept"}
+    accepted_by_group = {
+        row["probe_group_id"]: row
+        for row in gate_rows
+        if row.get("gate_decision") == "accept"
+    }
 
     groups = []
     for group in read_jsonl(src_diag / "probe_groups.jsonl"):
@@ -164,7 +170,9 @@ def promote_rows(
             promoted = dict(group)
             promoted["gold_source"] = "qwen_checked"
             promoted["review_status"] = "pass3_qwen_checked_gate_accepted"
-            promoted["qwen_review_file"] = accepted_by_group[group["probe_group_id"]]["result_file"]
+            promoted["qwen_review_file"] = accepted_by_group[group["probe_group_id"]][
+                "result_file"
+            ]
             groups.append(promoted)
         else:
             groups.append(group)
@@ -208,7 +216,9 @@ def main() -> None:
         shutil.rmtree(dst)
 
     (dst / "annotations").mkdir(parents=True)
-    shutil.copytree(src / "annotations" / "oracle_ledger", dst / "annotations" / "oracle_ledger")
+    shutil.copytree(
+        src / "annotations" / "oracle_ledger", dst / "annotations" / "oracle_ledger"
+    )
     for dirname in ["docs", "scripts", "slurm", "tests"]:
         if (src / dirname).exists():
             shutil.copytree(src / dirname, dst / dirname, dirs_exist_ok=True)
@@ -219,8 +229,14 @@ def main() -> None:
     accepted_group_ids: set[str] = set()
     for row in result_rows(args.qwen_results_root):
         parsed = row.get("parsed") if isinstance(row.get("parsed"), dict) else {}
-        group = parsed.get("corrected_probe_group") if isinstance(parsed.get("corrected_probe_group"), dict) else {}
-        group_id = group.get("probe_group_id") or (row.get("source_task", {}).get("probe_group", {}) or {}).get("probe_group_id")
+        group = (
+            parsed.get("corrected_probe_group")
+            if isinstance(parsed.get("corrected_probe_group"), dict)
+            else {}
+        )
+        group_id = group.get("probe_group_id") or (
+            row.get("source_task", {}).get("probe_group", {}) or {}
+        ).get("probe_group_id")
         accepted, reasons = qwen_gate(row)
         if group_id not in group_ids:
             accepted = False
@@ -243,7 +259,11 @@ def main() -> None:
     promote_rows(src, dst, accepted_group_ids, gate_rows)
     review_dir = dst / "review"
     review_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(args.qwen_results_root, review_dir / "qwen3_omni_high_quality_results", dirs_exist_ok=True)
+    shutil.copytree(
+        args.qwen_results_root,
+        review_dir / "qwen3_omni_high_quality_results",
+        dirs_exist_ok=True,
+    )
     write_jsonl(review_dir / "qwen_merge_gate.jsonl", gate_rows)
     accepted = [row for row in gate_rows if row["gate_decision"] == "accept"]
     rejected = [row for row in gate_rows if row["gate_decision"] == "reject"]
@@ -255,7 +275,11 @@ def main() -> None:
         "accepted_groups": len(accepted),
         "rejected_groups": len(rejected),
         "accepted_probe_group_ids": sorted(accepted_group_ids),
-        "reject_reason_counts": dict(collections.Counter(reason for row in rejected for reason in row["gate_reasons"])),
+        "reject_reason_counts": dict(
+            collections.Counter(
+                reason for row in rejected for reason in row["gate_reasons"]
+            )
+        ),
         "status": "pass3_qwen_checked_gate_complete",
     }
     write_json(review_dir / "pass3_qwen_merge_summary.json", summary)

@@ -1,16 +1,4 @@
-#!/usr/bin/env python3
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
-
 
 import base64
 import csv
@@ -19,6 +7,8 @@ import io
 import sys
 import zipfile
 from pathlib import Path
+
+#!/usr/bin/env python3
 
 
 EXPECTED_OLD_TAG = b"Tag: cp36-cp36m-manylinux2010_x86_64\n"

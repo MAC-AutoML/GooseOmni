@@ -3,11 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
-import sys
 from pathlib import Path
 from typing import Any
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from gooseomni.benchmark.decrypto_diagnostics import (  # noqa: E402
     PLAYERS,
@@ -15,7 +12,6 @@ from gooseomni.benchmark.decrypto_diagnostics import (  # noqa: E402
     load_ledger,
     write_jsonl,
 )
-
 
 GOOD_CLAIM_TYPES = {"location", "defense", "accusation", "sighting"}
 CONTRADICTED_ANCHOR_EVENT_TYPES = {
@@ -70,11 +66,22 @@ MIN_POST_MEETING_GAMEPLAY_LOCAL_SEC = 15.0
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build manually specified claim-truth / alibi candidates.")
+    parser = argparse.ArgumentParser(
+        description="Build manually specified claim-truth / alibi candidates."
+    )
     parser.add_argument("--input-pass-root", type=Path, required=True)
     parser.add_argument("--output-pass-root", type=Path, required=True)
-    parser.add_argument("--spec", action="append", required=True, help="event_id:claim_id:target[,target...]")
-    parser.add_argument("--truth-status", default="contradicted", choices=["supported", "contradicted", "unverified", "ambiguous"])
+    parser.add_argument(
+        "--spec",
+        action="append",
+        required=True,
+        help="event_id:claim_id:target[,target...]",
+    )
+    parser.add_argument(
+        "--truth-status",
+        default="contradicted",
+        choices=["supported", "contradicted", "unverified", "ambiguous"],
+    )
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
 
@@ -93,7 +100,9 @@ def parse_spec(value: str) -> tuple[str, str, list[str]]:
 
 
 def edge_lookup(edges: list[dict[str, Any]]) -> dict[tuple[str, str], dict[str, Any]]:
-    return {(str(edge.get("event_id")), str(edge.get("player_id"))): edge for edge in edges}
+    return {
+        (str(edge.get("event_id")), str(edge.get("player_id"))): edge for edge in edges
+    }
 
 
 def claim_content(claim: dict[str, Any]) -> str:
@@ -137,11 +146,20 @@ def validate_claim_truth_spec(
     if event.get("phase_type") != "gameplay":
         errors.append("anchor_event_not_gameplay")
     local_start = phase_local_start_sec(event)
-    if event.get("phase_type") == "gameplay" and local_start is not None and local_start < MIN_POST_MEETING_GAMEPLAY_LOCAL_SEC:
-        errors.append(f"anchor_event_too_close_to_gameplay_phase_start:{local_start:.1f}s")
+    if (
+        event.get("phase_type") == "gameplay"
+        and local_start is not None
+        and local_start < MIN_POST_MEETING_GAMEPLAY_LOCAL_SEC
+    ):
+        errors.append(
+            f"anchor_event_too_close_to_gameplay_phase_start:{local_start:.1f}s"
+        )
     if event_type in EXCLUDED_EVENT_TYPES:
         errors.append(f"anchor_event_type_not_clean_counterevidence:{event_type}")
-    if truth_status == "contradicted" and event_type not in CONTRADICTED_ANCHOR_EVENT_TYPES:
+    if (
+        truth_status == "contradicted"
+        and event_type not in CONTRADICTED_ANCHOR_EVENT_TYPES
+    ):
         errors.append(f"contradicted_anchor_event_type_too_weak:{event_type}")
     if has_bad_anchor_description(event):
         errors.append("anchor_description_has_ui_or_weak_semantics")
@@ -183,7 +201,13 @@ def validate_claim_truth_spec(
     return errors
 
 
-def make_group(idx: int, event: dict[str, Any], claim: dict[str, Any], target: str, truth_status: str) -> dict[str, Any]:
+def make_group(
+    idx: int,
+    event: dict[str, Any],
+    claim: dict[str, Any],
+    target: str,
+    truth_status: str,
+) -> dict[str, Any]:
     event_id = event["world_event_id"]
     claim_id = claim["claim_id"]
     return {
@@ -204,12 +228,22 @@ def make_group(idx: int, event: dict[str, Any], claim: dict[str, Any], target: s
             f"Manual claim-truth candidate: claim {claim_id} is treated as {truth_status} by candidate construction; "
             f"target {target} heard the claim and must not use hidden anchor {event_id} as local evidence unless reviewed."
         ),
-        "diagnostic_families": ["false_belief", "representational_change", "claim_verification", "perspective_taking"],
-        "template": "contradicted_alibi" if truth_status == "contradicted" else "claim_backed_hidden_event",
+        "diagnostic_families": [
+            "false_belief",
+            "representational_change",
+            "claim_verification",
+            "perspective_taking",
+        ],
+        "template": "contradicted_alibi"
+        if truth_status == "contradicted"
+        else "claim_backed_hidden_event",
         "quality": {
             "visibility_confidence": 0.75,
             "claim_truth_confidence": 0.75,
-            "timestamp_confidence": min(float(event.get("certainty", 0.85) or 0.85), float(claim.get("certainty", 0.85) or 0.85)),
+            "timestamp_confidence": min(
+                float(event.get("certainty", 0.85) or 0.85),
+                float(claim.get("certainty", 0.85) or 0.85),
+            ),
             "needs_human_review": True,
             "paper_gold_candidate": True,
         },
@@ -245,10 +279,14 @@ def main() -> None:
         if not claim:
             raise SystemExit(f"missing claim: {claim_id}")
         for target in targets:
-            errors = validate_claim_truth_spec(event, claim, target, args.truth_status, visibility_edges)
+            errors = validate_claim_truth_spec(
+                event, claim, target, args.truth_status, visibility_edges
+            )
             if errors:
                 raise SystemExit("; ".join(errors))
-            groups.append(make_group(len(groups) + 1, event, claim, target, args.truth_status))
+            groups.append(
+                make_group(len(groups) + 1, event, claim, target, args.truth_status)
+            )
 
     diagnostics = args.output_pass_root / "annotations" / "diagnostics"
     probes_by_type: dict[str, list[dict[str, Any]]] = {
@@ -277,10 +315,21 @@ def main() -> None:
         quality_rows.append(quality)
 
     write_jsonl(diagnostics / "probe_groups.jsonl", public_groups)
-    write_jsonl(diagnostics / "probes_A_pre_reveal.jsonl", probes_by_type["A_pre_reveal_belief"])
-    write_jsonl(diagnostics / "probes_B_reconstruct.jsonl", probes_by_type["B_post_reveal_reconstruct_previous_belief"])
-    write_jsonl(diagnostics / "probes_C_false_belief.jsonl", probes_by_type["C_other_agent_false_belief"])
-    write_jsonl(diagnostics / "probes_D_perspective_taking.jsonl", probes_by_type["D_perspective_taking_prediction"])
+    write_jsonl(
+        diagnostics / "probes_A_pre_reveal.jsonl", probes_by_type["A_pre_reveal_belief"]
+    )
+    write_jsonl(
+        diagnostics / "probes_B_reconstruct.jsonl",
+        probes_by_type["B_post_reveal_reconstruct_previous_belief"],
+    )
+    write_jsonl(
+        diagnostics / "probes_C_false_belief.jsonl",
+        probes_by_type["C_other_agent_false_belief"],
+    )
+    write_jsonl(
+        diagnostics / "probes_D_perspective_taking.jsonl",
+        probes_by_type["D_perspective_taking_prediction"],
+    )
     write_jsonl(diagnostics / "hidden_gold.jsonl", hidden_gold)
     write_jsonl(diagnostics / "diagnostic_quality.jsonl", quality_rows)
     print(

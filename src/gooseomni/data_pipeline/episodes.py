@@ -65,7 +65,9 @@ def build_episodes(
             and row["abs_sec"] > start["abs_sec"]
             and (next_start is None or row["abs_sec"] < next_start)
         ]
-        end_sec = candidates[0]["abs_sec"] if candidates else next_start or session_end_sec
+        end_sec = (
+            candidates[0]["abs_sec"] if candidates else next_start or session_end_sec
+        )
         if end_sec <= start["abs_sec"]:
             continue
         phases = _phases(start["abs_sec"], end_sec, boundaries)
@@ -123,11 +125,20 @@ def validate_episode_anchors(
                         ),
                     )
                     residuals.append(
-                        abs(float(chosen["aligned_start_sec"]) - float(anchor["abs_sec"]))
+                        abs(
+                            float(chosen["aligned_start_sec"])
+                            - float(anchor["abs_sec"])
+                        )
                     )
-                    evidence_ids.append(str(chosen.get("evidence_id", chosen["clip_id"])))
+                    evidence_ids.append(
+                        str(chosen.get("evidence_id", chosen["clip_id"]))
+                    )
             ordered = sorted(residuals)
-            p95 = ordered[min(len(ordered) - 1, int(0.95 * len(ordered)))] if ordered else None
+            p95 = (
+                ordered[min(len(ordered) - 1, int(0.95 * len(ordered)))]
+                if ordered
+                else None
+            )
             med = median(ordered) if ordered else None
             report = {
                 "episode_id": episode["episode_id"],
@@ -143,9 +154,13 @@ def validate_episode_anchors(
                     f"{episode['episode_id']}:{player} has fewer than {minimum_anchors} anchors"
                 )
             elif med is not None and med > median_limit:
-                issues.append(f"{episode['episode_id']}:{player} median residual exceeds limit")
+                issues.append(
+                    f"{episode['episode_id']}:{player} median residual exceeds limit"
+                )
             elif p95 is not None and p95 > p95_limit:
-                issues.append(f"{episode['episode_id']}:{player} p95 residual exceeds limit")
+                issues.append(
+                    f"{episode['episode_id']}:{player} p95 residual exceeds limit"
+                )
     return {"ok": not issues, "issues": issues, "reports": reports}
 
 

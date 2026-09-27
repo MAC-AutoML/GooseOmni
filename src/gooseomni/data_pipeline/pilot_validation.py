@@ -22,9 +22,7 @@ def validate_pilot(
     issues.extend(validate_trials(trials))
     state_by_id = {str(row["information_state_id"]): row for row in states}
     evidence_ids = {
-        str(value)
-        for node in nodes
-        for value in node.get("evidence_asset_ids", [])
+        str(value) for node in nodes for value in node.get("evidence_asset_ids", [])
     }
     for row in trials:
         if set(row.get("evidence_ids", [])) - evidence_ids:

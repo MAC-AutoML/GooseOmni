@@ -93,7 +93,11 @@ class DataPipelineRunner:
             raise ValueError(f"unknown stage: {from_stage}")
         if to_stage and to_stage not in stages:
             raise ValueError(f"unknown stage: {to_stage}")
-        if from_stage and to_stage and stages.index(from_stage) > stages.index(to_stage):
+        if (
+            from_stage
+            and to_stage
+            and stages.index(from_stage) > stages.index(to_stage)
+        ):
             raise ValueError("from_stage must not come after to_stage")
         manifest = self.status()
         current_hash = self._config_hash()

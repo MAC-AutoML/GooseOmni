@@ -42,7 +42,9 @@ class OmniHttpClient:
         retry_delay: float = 3.0,
     ) -> str | None:
         if (use_video or use_audio) and not video_path:
-            raise ValueError("video_path is required when video or audio input is enabled")
+            raise ValueError(
+                "video_path is required when video or audio input is enabled"
+            )
         video_name = os.path.basename(video_path) if video_path else "text-only"
         self.logger.info("Calling OMNI API: %s", video_name)
 
@@ -63,7 +65,12 @@ class OmniHttpClient:
                         response = requests.post(
                             f"{self.server_url}/v1/infer",
                             files={"video": video_file},
-                            data={key: str(value).lower() if isinstance(value, bool) else value for key, value in payload.items()},
+                            data={
+                                key: str(value).lower()
+                                if isinstance(value, bool)
+                                else value
+                                for key, value in payload.items()
+                            },
                             timeout=self.timeout_sec,
                         )
                 else:

@@ -7,7 +7,6 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-
 PLAYERS = ["Gemini", "baile", "beigang", "mojiang", "saoyi", "xiaolu"]
 QUALITY_PROFILE = {
     "QWEN3_OMNI_MAX_TOKENS": 16384,
@@ -119,17 +118,26 @@ Required JSON:
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
 
 
 def phase_type_from_id(phase_id: str) -> str:
@@ -147,18 +155,25 @@ def pick_primary_player(available: set[str], preferred: list[str]) -> str:
     return sorted(available)[0]
 
 
-def load_meeting_phases(release_root: Path, primary_players: list[str]) -> list[dict[str, Any]]:
+def load_meeting_phases(
+    release_root: Path, primary_players: list[str]
+) -> list[dict[str, Any]]:
     manifest = read_jsonl(release_root / "inputs" / "manifest.jsonl")
     by_phase: dict[str, dict[str, Any]] = {}
     for row in manifest:
         phase_id = str(row.get("phase_id"))
         phase_type = str(row.get("phase_type") or phase_type_from_id(phase_id))
-        if phase_type not in {"meeting", "final", "vote_result"} and "meeting" not in phase_id:
+        if (
+            phase_type not in {"meeting", "final", "vote_result"}
+            and "meeting" not in phase_id
+        ):
             continue
         player = str(row.get("player_id"))
         if player not in PLAYERS:
             continue
-        phase = by_phase.setdefault(phase_id, {"phase_id": phase_id, "players": {}, "metadata": {}})
+        phase = by_phase.setdefault(
+            phase_id, {"phase_id": phase_id, "players": {}, "metadata": {}}
+        )
         phase["players"][player] = True
         phase["metadata"][player] = row
 
@@ -168,7 +183,9 @@ def load_meeting_phases(release_root: Path, primary_players: list[str]) -> list[
         available = set(phase["players"])
         primary = pick_primary_player(available, primary_players)
         meta = phase["metadata"].get(primary) or next(iter(phase["metadata"].values()))
-        video = release_root / "inputs" / "videos" / "g001" / phase_id / f"{primary}.mp4"
+        video = (
+            release_root / "inputs" / "videos" / "g001" / phase_id / f"{primary}.mp4"
+        )
         if not video.exists():
             continue
         phases.append(
@@ -183,14 +200,49 @@ def load_meeting_phases(release_root: Path, primary_players: list[str]) -> list[
     return phases
 
 
-def cut_window(source: Path, local_start: float, duration: float, output: Path, reencode: bool) -> dict[str, Any]:
+def cut_window(
+    source: Path, local_start: float, duration: float, output: Path, reencode: bool
+) -> dict[str, Any]:
     output.parent.mkdir(parents=True, exist_ok=True)
-    cmd = ["ffmpeg", "-y", "-ss", f"{local_start:.3f}", "-i", source.as_posix(), "-t", f"{duration:.3f}"]
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-ss",
+        f"{local_start:.3f}",
+        "-i",
+        source.as_posix(),
+        "-t",
+        f"{duration:.3f}",
+    ]
     if reencode:
-        cmd.extend(["-c:v", "mpeg4", "-q:v", "4", "-c:a", "aac", "-movflags", "+faststart", output.as_posix()])
+        cmd.extend(
+            [
+                "-c:v",
+                "mpeg4",
+                "-q:v",
+                "4",
+                "-c:a",
+                "aac",
+                "-movflags",
+                "+faststart",
+                output.as_posix(),
+            ]
+        )
     else:
-        cmd.extend(["-map", "0:v:0", "-map", "0:a?", "-c", "copy", "-movflags", "+faststart", output.as_posix()])
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        cmd.extend(
+            [
+                "-map",
+                "0:v:0",
+                "-map",
+                "0:a?",
+                "-c",
+                "copy",
+                "-movflags",
+                "+faststart",
+                output.as_posix(),
+            ]
+        )
+    proc = subprocess.run(cmd, capture_output=True, text=True)
     return {
         "ok": proc.returncode == 0 and output.exists() and output.stat().st_size > 0,
         "source": source.as_posix(),
@@ -238,7 +290,9 @@ def build_tasks(
                 {
                     "review_task_id": task_id,
                     "task_type": "meeting_claim_grounding_window_reannotation",
-                    "priority": "high" if phase["phase_type"] == "meeting" else "medium",
+                    "priority": "high"
+                    if phase["phase_type"] == "meeting"
+                    else "medium",
                     "qwen3_omni_quality_profile": QUALITY_PROFILE,
                     "primary_video_file": clip["output"],
                     "context_video_files": [],
@@ -272,13 +326,21 @@ def build_tasks(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build short-window Qwen3-Omni meeting claim grounding pack.")
-    parser.add_argument("--release-root", type=Path, default=Path("runs/gooseomni_gameplay_pass1/release_benchmark_v2"))
+    parser = argparse.ArgumentParser(
+        description="Build short-window Qwen3-Omni meeting claim grounding pack."
+    )
+    parser.add_argument(
+        "--release-root",
+        type=Path,
+        default=Path("runs/gooseomni_gameplay_pass1/release_benchmark_v2"),
+    )
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--window-sec", type=float, default=60.0)
     parser.add_argument("--overlap-sec", type=float, default=8.0)
     parser.add_argument("--limit", type=int, default=None)
-    parser.add_argument("--primary-player", action="append", default=["Gemini", "baile", "beigang"])
+    parser.add_argument(
+        "--primary-player", action="append", default=["Gemini", "baile", "beigang"]
+    )
     parser.add_argument("--reencode", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
@@ -311,7 +373,9 @@ def main() -> None:
         "tasks": len(tasks),
         "window_sec": args.window_sec,
         "overlap_sec": args.overlap_sec,
-        "tasks_with_primary_video": sum(1 for task in tasks if Path(task["primary_video_file"]).exists()),
+        "tasks_with_primary_video": sum(
+            1 for task in tasks if Path(task["primary_video_file"]).exists()
+        ),
         "quality_profile": QUALITY_PROFILE,
         "note": "Window-level Qwen outputs are qwen_checked candidates only; Codex-human gate is required before human_verified benchmark merge.",
     }

@@ -1,6 +1,23 @@
-from .decrypto_canonical import *  # noqa: F401,F403
+from pathlib import Path
 
-def build_oracle_ledger(release_root: Path, output_root: Path, game_id: str = "g001") -> dict[str, int]:
+from gooseomni.benchmark.decrypto_canonical import (
+    PLAYERS,
+    build_belief_snapshots,
+    build_candidate_claims,
+    build_candidate_events,
+    build_claim_truth_links,
+    build_phase_events,
+    build_visibility_edges,
+    canonicalize_claims,
+    canonicalize_events,
+    load_gold_annotations,
+    write_jsonl,
+)
+
+
+def build_oracle_ledger(
+    release_root: Path, output_root: Path, game_id: str = "g001"
+) -> dict[str, int]:
     annotations = load_gold_annotations(release_root, game_id)
     candidate_events = build_candidate_events(annotations)
     candidate_claims = build_candidate_claims(annotations)
@@ -28,7 +45,9 @@ def build_oracle_ledger(release_root: Path, output_root: Path, game_id: str = "g
         if key not in seen:
             seen.add(key)
             seen_cutoffs.append((player, cutoff))
-    snapshots = build_belief_snapshots(world_events, claims, visibility_edges, seen_cutoffs[:360])
+    snapshots = build_belief_snapshots(
+        world_events, claims, visibility_edges, seen_cutoffs[:360]
+    )
 
     ledger = output_root / "oracle_ledger"
     write_jsonl(ledger / "world_events.jsonl", world_events)
@@ -47,4 +66,3 @@ def build_oracle_ledger(release_root: Path, output_root: Path, game_id: str = "g
         "claim_truth_links": len(claim_truth_links),
         "canonical_event_map": len(event_maps),
     }
-

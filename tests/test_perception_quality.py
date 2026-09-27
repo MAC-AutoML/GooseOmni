@@ -116,9 +116,7 @@ def test_visual_gate_requires_matching_transcribed_abs_timestamps() -> None:
         "timestamp_evidence": "first=ABS 10.00s; last=ABS 12.00s",
     }
     assert validate_pass_events([valid], "visual") == []
-    missing = validate_pass_events(
-        [{**valid, "timestamp_evidence": ""}], "visual"
-    )
+    missing = validate_pass_events([{**valid, "timestamp_evidence": ""}], "visual")
     assert "visual event lacks two transcribed ABS timestamps" in missing
     mismatch = validate_pass_events(
         [{**valid, "timestamp_evidence": "first=ABS 8.00s; last=ABS 9.00s"}],

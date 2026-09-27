@@ -161,8 +161,12 @@ def test_run_split_can_limit_manifest(monkeypatch, tmp_path: Path) -> None:
     (game_dir / "P1.mp4").write_bytes(b"")
     (game_dir / "P2.mp4").write_bytes(b"")
 
-    monkeypatch.setattr("gooseomni.annotation.splitting.probe_duration", lambda path: 200.0)
-    monkeypatch.setattr("gooseomni.annotation.splitting.split_clip", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        "gooseomni.annotation.splitting.probe_duration", lambda path: 200.0
+    )
+    monkeypatch.setattr(
+        "gooseomni.annotation.splitting.split_clip", lambda *args, **kwargs: None
+    )
 
     clips = run_split(
         SplitConfig(
@@ -186,8 +190,12 @@ def test_run_split_writes_time_sorted_manifest(monkeypatch, tmp_path: Path) -> N
     (game_dir / "P1.mp4").write_bytes(b"")
     (game_dir / "P2.mp4").write_bytes(b"")
 
-    monkeypatch.setattr("gooseomni.annotation.splitting.probe_duration", lambda path: 100.0)
-    monkeypatch.setattr("gooseomni.annotation.splitting.split_clip", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        "gooseomni.annotation.splitting.probe_duration", lambda path: 100.0
+    )
+    monkeypatch.setattr(
+        "gooseomni.annotation.splitting.split_clip", lambda *args, **kwargs: None
+    )
     manifest = tmp_path / "manifest.jsonl"
 
     run_split(
@@ -359,7 +367,7 @@ def test_build_candidate_trials_reads_json_arrays(tmp_path: Path) -> None:
                     "event_type": "kill",
                     "description": "P2 视角看到击杀。",
                     "source_player_ids": ["P2"],
-                }
+                },
             ]
         ),
         encoding="utf-8",

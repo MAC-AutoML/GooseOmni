@@ -1,35 +1,30 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import json
 import re
-import sys
 from pathlib import Path
 from typing import Any
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from gooseomni.benchmark.backends import create_backend
 from gooseomni.benchmark.decrypto_diagnostics import PLAYERS, write_json
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run Qwen3-Omni high-quality review for Decrypto diagnostic queue items.")
+    parser = argparse.ArgumentParser(
+        description="Run Qwen3-Omni high-quality review for Decrypto diagnostic queue items."
+    )
     parser.add_argument("--queue", type=Path, required=True)
     parser.add_argument("--prompt-template", type=Path, required=True)
-    parser.add_argument("--release-root", type=Path, default=Path("runs/gooseomni_gameplay_pass1/release_benchmark_v2"))
+    parser.add_argument(
+        "--release-root",
+        type=Path,
+        default=Path("runs/gooseomni_gameplay_pass1/release_benchmark_v2"),
+    )
     parser.add_argument("--output-root", type=Path, required=True)
-    parser.add_argument("--backend", choices=["mock", "local", "qwen", "openai"], default="mock")
+    parser.add_argument(
+        "--backend", choices=["mock", "local", "qwen", "openai"], default="mock"
+    )
     parser.add_argument("--server-url", default=None)
     parser.add_argument("--model", default="qwen3-omni")
     parser.add_argument("--api-key-env", default="OPENAI_API_KEY")
@@ -42,7 +37,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def try_parse_json(raw: str) -> tuple[dict[str, Any], bool]:
@@ -64,9 +63,16 @@ def phase_ids_for_task(task: dict[str, Any]) -> list[str]:
     phase_ids: list[str] = []
     group = task.get("probe_group") if isinstance(task.get("probe_group"), dict) else {}
     claim = task.get("claim") if isinstance(task.get("claim"), dict) else {}
-    for row in [group, claim, *task.get("anchor_events", []), *task.get("related_claims", [])]:
+    for row in [
+        group,
+        claim,
+        *task.get("anchor_events", []),
+        *task.get("related_claims", []),
+    ]:
         if isinstance(row, dict):
-            phase_ids.extend(str(item) for item in row.get("source_segment_ids", []) if item)
+            phase_ids.extend(
+                str(item) for item in row.get("source_segment_ids", []) if item
+            )
     return list(dict.fromkeys(phase_ids))
 
 
@@ -74,7 +80,9 @@ def preferred_players_for_task(task: dict[str, Any]) -> list[str]:
     players: list[str] = []
     for event in task.get("anchor_events", []):
         if isinstance(event, dict):
-            players.extend(player for player in event.get("source_povs", []) if player in PLAYERS)
+            players.extend(
+                player for player in event.get("source_povs", []) if player in PLAYERS
+            )
     group = task.get("probe_group") if isinstance(task.get("probe_group"), dict) else {}
     target = group.get("target_player")
     if target in PLAYERS:
@@ -98,10 +106,14 @@ def resolve_video(task: dict[str, Any], release_root: Path) -> Path:
             return path
     for phase_id in phase_ids_for_task(task):
         for player in preferred_players_for_task(task):
-            path = release_root / "inputs" / "videos" / "g001" / phase_id / f"{player}.mp4"
+            path = (
+                release_root / "inputs" / "videos" / "g001" / phase_id / f"{player}.mp4"
+            )
             if path.exists():
                 return path
-    raise FileNotFoundError(f"Could not resolve review video for task {task.get('review_task_id')}")
+    raise FileNotFoundError(
+        f"Could not resolve review video for task {task.get('review_task_id')}"
+    )
 
 
 def build_prompt(template: str, task: dict[str, Any], video_path: Path) -> str:
@@ -116,7 +128,11 @@ def build_prompt(template: str, task: dict[str, Any], video_path: Path) -> str:
             "Return strict JSON only."
         ),
     }
-    return template + "\n\nTASK_JSON:\n" + json.dumps(payload, ensure_ascii=False, indent=2)
+    return (
+        template
+        + "\n\nTASK_JSON:\n"
+        + json.dumps(payload, ensure_ascii=False, indent=2)
+    )
 
 
 def main() -> None:
@@ -153,7 +169,9 @@ def main() -> None:
                         "corrected_probe_group": task.get("probe_group", {}),
                         "corrected_prompts": [],
                         "review_reasons": ["mock backend placeholder"],
-                        "remaining_uncertainties": ["mock backend does not inspect video"],
+                        "remaining_uncertainties": [
+                            "mock backend does not inspect video"
+                        ],
                         "needs_human_review": True,
                     },
                     ensure_ascii=False,

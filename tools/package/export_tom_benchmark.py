@@ -1,36 +1,31 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import collections
 import json
-import sys
 from pathlib import Path
 from typing import Any
-
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from gooseomni.benchmark.io import write_json, write_jsonl
 from gooseomni.benchmark.pipeline import output_root
 from gooseomni.benchmark.schema import BenchmarkGold, BenchmarkTrial
 
+ROOT = Path(__file__).resolve().parents[1]
 
-CONDITIONS = ["single_pov_video", "single_pov_events", "multi_pov_global", "multi_pov_perspective", "text_only"]
+
+CONDITIONS = [
+    "single_pov_video",
+    "single_pov_events",
+    "multi_pov_global",
+    "multi_pov_perspective",
+    "text_only",
+]
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Export weak GooseOmni ToM benchmark files.")
+    parser = argparse.ArgumentParser(
+        description="Export weak GooseOmni ToM benchmark files."
+    )
     parser.add_argument("--dataset-root", default="data/gooseomni", type=Path)
     parser.add_argument("--annotation-root", default=None, type=Path)
     parser.add_argument("--benchmark-root", default="benchmark", type=Path)
@@ -41,7 +36,11 @@ def parse_args() -> argparse.Namespace:
 def _load_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def _as_info_rows(values: list[str]) -> list[dict[str, str]]:
@@ -102,13 +101,21 @@ def main() -> None:
                 target_player=row["target_player"],
                 cutoff_abs_sec=row["cutoff_abs_sec"],
                 input_condition=condition,
-                input_video_files=[f"videos/{row['game_id']}/{row['segment_id']}/{row['target_player']}.mp4"] if condition == "single_pov_video" else [],
+                input_video_files=[
+                    f"videos/{row['game_id']}/{row['segment_id']}/{row['target_player']}.mp4"
+                ]
+                if condition == "single_pov_video"
+                else [],
                 question=row["question"],
-                available_information=_as_info_rows(row.get("available_information", [])),
+                available_information=_as_info_rows(
+                    row.get("available_information", [])
+                ),
                 hidden_information=_as_info_rows(row.get("hidden_information", [])),
                 gold=BenchmarkGold(
                     label=row.get("answer", "unknown"),
-                    acceptable_reasoning=[row.get("expected_answer_basis") or row.get("evidence", "")],
+                    acceptable_reasoning=[
+                        row.get("expected_answer_basis") or row.get("evidence", "")
+                    ],
                     forbidden_reasoning=row.get("hidden_information", []),
                     gold_source="qwen_weak",
                 ),
@@ -127,8 +134,12 @@ def main() -> None:
                     "risk_of_perspective_leakage": risk,
                     "needs_human_review": bool(review_reasons),
                     "review_reasons": review_reasons,
-                    "supporting_global_event_ids": row.get("supporting_global_event_ids", []),
-                    "supporting_information_state_ids": row.get("supporting_information_state_ids", []),
+                    "supporting_global_event_ids": row.get(
+                        "supporting_global_event_ids", []
+                    ),
+                    "supporting_information_state_ids": row.get(
+                        "supporting_information_state_ids", []
+                    ),
                 }
             )
             trials.append(payload)

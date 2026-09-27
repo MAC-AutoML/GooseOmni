@@ -15,7 +15,11 @@ class MiniOmni2Client:
     def predict(self, request: InferenceRequest) -> InferenceResult:
         model_config = CONFIG.model("miniomni_2")
         server_url = request.metadata.get("server_url") if request.metadata else None
-        server_url = server_url or model_config.get("server_url") or os.getenv("MINIOMNI2_SERVER_URL")
+        server_url = (
+            server_url
+            or model_config.get("server_url")
+            or os.getenv("MINIOMNI2_SERVER_URL")
+        )
 
         user_prompt = request.metadata.get("user_prompt") if request.metadata else None
         user_prompt = user_prompt or model_config.get("user_prompt")
@@ -23,7 +27,9 @@ class MiniOmni2Client:
         use_audio = request.use_audio
 
         if not server_url:
-            raise ValueError("Missing MiniOmni2 server_url. Please configure it in configs/gooseomni.yaml or environment variables.")
+            raise ValueError(
+                "Missing MiniOmni2 server_url. Please configure it in configs/gooseomni.yaml or environment variables."
+            )
 
         client = OmniHttpClient(server_url)
         media_path = request.require_video_path() if (use_video or use_audio) else None
@@ -36,4 +42,6 @@ class MiniOmni2Client:
             max_retries=CONFIG.runtime("max_retries", 5),
             retry_delay=CONFIG.runtime("request_delay", 0.0),
         )
-        return InferenceResult(text=raw_answer or "", parsed_answer=raw_answer or "", model=self.model_name)
+        return InferenceResult(
+            text=raw_answer or "", parsed_answer=raw_answer or "", model=self.model_name
+        )

@@ -14,6 +14,7 @@ from gooseomni.config import PATHS
 from gooseomni.models.utils.openai_compat_tester import OpenAICompatTester
 
 from .config import DataPipelineConfig
+from .pilot_stages import PILOT_HANDLERS  # noqa: E402
 from .provenance import sha256_file, stable_hash
 from .raw_stages import (
     codex_review_stage as raw_codex_review_stage,
@@ -152,7 +153,9 @@ def package_stage(context: StageContext) -> dict[str, Any]:
     source = context.run_root / "benchmark_staging"
     destination = context.config.benchmark_root
     if destination.exists():
-        raise FileExistsError(f"refusing to overwrite published benchmark: {destination}")
+        raise FileExistsError(
+            f"refusing to overwrite published benchmark: {destination}"
+        )
     link_targets = {
         path.relative_to(source): path.resolve()
         for path in source.rglob("*")
@@ -220,7 +223,9 @@ def validate_judgement(
     allowed = {str(row) for row in candidate.get("available_evidence_ids", [])}
     cited = _evidence_ids(parsed)
     if cited - allowed:
-        raise ValueError(f"Codex judge cited unknown evidence IDs: {sorted(cited - allowed)}")
+        raise ValueError(
+            f"Codex judge cited unknown evidence IDs: {sorted(cited - allowed)}"
+        )
     final_value = candidate if decision == "accept" else parsed.get("final_value")
     if decision == "repair" and not isinstance(final_value, dict):
         raise ValueError("repair decision requires object final_value")
@@ -268,8 +273,6 @@ DEFAULT_HANDLERS: dict[str, StageHandler] = {
     "validate": validate_stage,
     "package": package_stage,
 }
-
-from .pilot_stages import PILOT_HANDLERS  # noqa: E402
 
 
 def handlers_for(config: DataPipelineConfig) -> dict[str, StageHandler]:

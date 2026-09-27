@@ -1,22 +1,7 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
-import sys
 from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from gooseomni.benchmark.backends import create_backend
 from gooseomni.benchmark.io import load_segments_jsonl, write_json
@@ -25,17 +10,21 @@ from gooseomni.benchmark.pipeline import (
     append_review_items,
     filter_povs,
     filter_segments,
-    parse_json_array_with_video_retry,
     normalize_pov_event_payload,
+    parse_json_array_with_video_retry,
     save_error,
     video_path_for,
 )
 from gooseomni.benchmark.prompts import pov_event_prompt
 from gooseomni.benchmark.schema import POVEvent, POVEventAnnotation
 
+ROOT = Path(__file__).resolve().parents[1]
+
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Annotate aligned Omni Goose POV events.")
+    parser = argparse.ArgumentParser(
+        description="Annotate aligned Omni Goose POV events."
+    )
     parser.add_argument("--dataset-root", default="data/gooseomni", type=Path)
     parser.add_argument("--output-root", default=None, type=Path)
     parser.add_argument("--segments-jsonl", default=None, type=Path)
@@ -57,7 +46,13 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    backend = create_backend(args.backend, model=args.model, api_key_env=args.api_key_env, base_url=args.base_url, server_url=args.server_url)
+    backend = create_backend(
+        args.backend,
+        model=args.model,
+        api_key_env=args.api_key_env,
+        base_url=args.base_url,
+        server_url=args.server_url,
+    )
     segments_path = args.segments_jsonl or args.dataset_root / "segments.jsonl"
     stats = {"ok": 0, "error": 0, "skipped": 0}
     segments = filter_segments(
@@ -71,7 +66,11 @@ def main() -> None:
     for segment in segments:
         for pov in filter_povs(segment, args.player_id):
             output_path = annotation_path(
-                args.dataset_root, "pov_events", segment, pov.player_id, args.output_root
+                args.dataset_root,
+                "pov_events",
+                segment,
+                pov.player_id,
+                args.output_root,
             )
             if output_path.exists() and args.resume and not args.overwrite:
                 stats["skipped"] += 1
@@ -86,7 +85,9 @@ def main() -> None:
                     max_items=4,
                 )
                 events = [
-                    POVEvent.model_validate(normalize_pov_event_payload(item, segment, pov, index))
+                    POVEvent.model_validate(
+                        normalize_pov_event_payload(item, segment, pov, index)
+                    )
                     for index, item in enumerate(parsed_items, start=1)
                 ]
                 annotation = POVEventAnnotation(

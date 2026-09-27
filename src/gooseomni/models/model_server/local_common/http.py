@@ -30,7 +30,9 @@ def parse_infer_request(request: Any, default_audio: bool = True) -> InferPayloa
     use_audio = _bool(data.get("use_audio"), default_audio)
     visual_mask = _bool(data.get("visual_mask"), False)
     media_start_raw = data.get("media_start_sec")
-    media_start_sec = float(media_start_raw) if media_start_raw not in {None, ""} else None
+    media_start_sec = (
+        float(media_start_raw) if media_start_raw not in {None, ""} else None
+    )
     upload = request.files.get("video")
     if not prompt:
         raise ValueError("Prompt cannot be empty")

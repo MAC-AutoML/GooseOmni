@@ -1,21 +1,10 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import json
 import os
 import subprocess
 from pathlib import Path
-
 
 REPLACEABLE_PREFIXES = (
     "og-pov-",
@@ -32,8 +21,14 @@ REPLACEABLE_PREFIXES = (
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Plan replacement of many pending Omni Goose jobs with one 4x2 worker job.")
-    parser.add_argument("--output", default=Path("runs/gooseomni_oracle_pass1/pending_replace_4x2_plan.json"), type=Path)
+    parser = argparse.ArgumentParser(
+        description="Plan replacement of many pending Omni Goose jobs with one 4x2 worker job."
+    )
+    parser.add_argument(
+        "--output",
+        default=Path("runs/gooseomni_oracle_pass1/pending_replace_4x2_plan.json"),
+        type=Path,
+    )
     parser.add_argument("--limit", default=None, type=int)
     return parser.parse_args()
 
@@ -77,7 +72,8 @@ def main() -> None:
     replaceable = [
         row
         for row in rows
-        if row["state"] == "PENDING" and row["job_name"].startswith(REPLACEABLE_PREFIXES)
+        if row["state"] == "PENDING"
+        and row["job_name"].startswith(REPLACEABLE_PREFIXES)
     ]
     if args.limit is not None:
         replaceable = replaceable[: args.limit]
@@ -85,7 +81,9 @@ def main() -> None:
         "replaceable_pending_count": len(replaceable),
         "replaceable_job_ids": [row["job_id"] for row in replaceable],
         "replaceable_jobs": replaceable,
-        "scancel_command": "scancel " + " ".join(row["job_id"] for row in replaceable) if replaceable else "",
+        "scancel_command": "scancel " + " ".join(row["job_id"] for row in replaceable)
+        if replaceable
+        else "",
         "submit_4x2_command": (
             ".venv/bin/python tools/annotation/submit_gooseomni_oracle_jobs.py "
             "--dataset-root data/gooseomni "
@@ -96,7 +94,9 @@ def main() -> None:
         "note": "This script only writes a plan. It does not cancel or submit jobs.",
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    args.output.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     md_path = args.output.with_suffix(".md")
     lines = [
         "# Pending Replacement Plan",
@@ -119,9 +119,19 @@ def main() -> None:
         "",
     ]
     for row in replaceable[:80]:
-        lines.append(f"- {row['job_id']} {row['job_name']} {row['state']} {row['reason']}")
+        lines.append(
+            f"- {row['job_id']} {row['job_name']} {row['state']} {row['reason']}"
+        )
     md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(json.dumps({"replaceable_pending_count": len(replaceable), "output": args.output.as_posix()}, ensure_ascii=False))
+    print(
+        json.dumps(
+            {
+                "replaceable_pending_count": len(replaceable),
+                "output": args.output.as_posix(),
+            },
+            ensure_ascii=False,
+        )
+    )
 
 
 if __name__ == "__main__":

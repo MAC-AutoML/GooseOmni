@@ -65,15 +65,23 @@ class BaichuanOmni15Client:
     def predict(self, request: InferenceRequest) -> InferenceResult:
         model_config = CONFIG.model("baichuan_omni_1_5")
         server_url = request.metadata.get("server_url") if request.metadata else None
-        server_url = server_url or model_config.get("server_url") or os.getenv("BAICHUAN_OMNI_1_5_SERVER_URL")
+        server_url = (
+            server_url
+            or model_config.get("server_url")
+            or os.getenv("BAICHUAN_OMNI_1_5_SERVER_URL")
+        )
         if not server_url:
-            raise ValueError("Missing Baichuan-Omni-1.5 server_url. Please configure it in configs/gooseomni.yaml or environment variables.")
+            raise ValueError(
+                "Missing Baichuan-Omni-1.5 server_url. Please configure it in configs/gooseomni.yaml or environment variables."
+            )
 
         full_question = self._build_prompt(request)
 
         use_video = request.use_video
 
-        media_path = request.require_video_path() if (use_video or request.use_audio) else None
+        media_path = (
+            request.require_video_path() if (use_video or request.use_audio) else None
+        )
         raw_answer = self._call_api(
             server_url,
             media_path,
@@ -84,4 +92,6 @@ class BaichuanOmni15Client:
             retry_delay=CONFIG.runtime("request_delay", 0.0),
         )
         clean_answer = self._extract_clean_answer(raw_answer or "")
-        return InferenceResult(text=raw_answer or "", parsed_answer=clean_answer, model=self.model_name)
+        return InferenceResult(
+            text=raw_answer or "", parsed_answer=clean_answer, model=self.model_name
+        )

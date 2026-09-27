@@ -58,8 +58,10 @@ def test_data_config_accepts_manifest_players(tmp_path: Path) -> None:
 def test_strict_pilot_uses_new_stage_sequence(tmp_path: Path) -> None:
     path = _config(tmp_path)
     path.write_text(
-        path.read_text(encoding="utf-8")
-        .replace("version: test_v2", "version: gooseomni_v2_pilot\npipeline: strict_tom_pilot")
+        path.read_text(encoding="utf-8").replace(
+            "version: test_v2",
+            "version: gooseomni_v2_pilot\npipeline: strict_tom_pilot",
+        )
         + (
             "perception: {dual_pass: true, max_visual_chunk_sec: 30, "
             "max_audio_chunk_sec: 30, split_on_phase_boundaries: true}\n"
@@ -210,7 +212,9 @@ def test_codex_judgement_fails_closed_on_unknown_evidence() -> None:
         )
 
 
-def test_review_cache_can_restore_a_curated_trial_absent_from_fresh_candidates() -> None:
+def test_review_cache_can_restore_a_curated_trial_absent_from_fresh_candidates() -> (
+    None
+):
     final = {
         "public_trial": {
             "trial_id": "curated-1",
@@ -231,9 +235,11 @@ def test_review_cache_can_restore_a_curated_trial_absent_from_fresh_candidates()
         {"curated-1": {"decision": "repair", "final_value": final}},
     )
     assert [row["trial_id"] for row in public] == ["curated-1"]
-    assert {public[0]["gold_source"], gold[0]["gold_source"], hidden[0]["gold_source"]} == {
-        "model_verified"
-    }
+    assert {
+        public[0]["gold_source"],
+        gold[0]["gold_source"],
+        hidden[0]["gold_source"],
+    } == {"model_verified"}
     assert hidden[0]["model_verified_scope"] == "model_verified_annotation_gate"
 
 
@@ -331,9 +337,7 @@ def test_local_codex_review_prepare_and_merge(tmp_path: Path) -> None:
             "".join(json.dumps(row) + "\n" for row in values), encoding="utf-8"
         )
     review_root = tmp_path / "review"
-    manifest = prepare_review_shards(
-        candidate_root.parent, review_root, shard_size=1
-    )
+    manifest = prepare_review_shards(candidate_root.parent, review_root, shard_size=1)
     output = Path(manifest["shards"][0]["output"])
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(

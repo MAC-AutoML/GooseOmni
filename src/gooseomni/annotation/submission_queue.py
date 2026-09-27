@@ -1,4 +1,27 @@
-from .submission_config import *  # noqa: F401,F403
+import argparse
+import json
+import re
+import subprocess
+from pathlib import Path
+
+from gooseomni.annotation.submission_config import (
+    DOWNSTREAM_ACTIVE_STAGES,
+    DOWNSTREAM_STAGES,
+    STAGE_ABBREVIATIONS,
+    SUBMIT_LIMIT,
+    SegmentStatus,
+    job_name,
+    load_candidate_counts,
+    segment_number,
+    segment_status,
+    selected_segments,
+    submit_stage,
+)
+
+
+def downstream_marker_path(annotation_root: Path, segment_id: str) -> Path:
+    return annotation_root / "job_markers" / "downstream" / f"{segment_id}.json"
+
 
 def active_job_names() -> set[str]:
     try:
@@ -44,7 +67,9 @@ def active_job_ids() -> set[str]:
     return {line.strip() for line in result.stdout.splitlines() if line.strip()}
 
 
-def downstream_marker_active(marker_path: Path, active_jobs: set[str], active_ids: dict[str, str]) -> bool:
+def downstream_marker_active(
+    marker_path: Path, active_jobs: set[str], active_ids: dict[str, str]
+) -> bool:
     try:
         payload = json.loads(marker_path.read_text(encoding="utf-8"))
     except Exception:
@@ -80,7 +105,9 @@ def active_segment_numbers_for_stage(stage: str, active_jobs: set[str]) -> set[i
     return active
 
 
-def active_segment_ranges_for_stage(stage: str, active_jobs: set[str]) -> list[tuple[int, int]]:
+def active_segment_ranges_for_stage(
+    stage: str, active_jobs: set[str]
+) -> list[tuple[int, int]]:
     stage_name = STAGE_ABBREVIATIONS.get(stage, stage[:8])
     prefix = f"og-{stage_name}-"
     ranges: list[tuple[int, int]] = []
@@ -108,16 +135,16 @@ def partial_downstream_batches(
     active_jobs: set[str],
     batch_size: int,
 ) -> list[list[str]]:
-    by_index = {int(segment_number(segment_id)): segment_id for segment_id in ready_segment_ids}
+    by_index = {
+        int(segment_number(segment_id)): segment_id for segment_id in ready_segment_ids
+    }
     batches: list[list[str]] = []
     seen_batches: set[str] = set()
     covered_segments: set[str] = set()
     for stage in ("global_events", "information_states", "memory_states"):
         for start, end in active_segment_ranges_for_stage(stage, active_jobs):
             segment_ids = [
-                by_index[index]
-                for index in range(start, end + 1)
-                if index in by_index
+                by_index[index] for index in range(start, end + 1) if index in by_index
             ]
             if not segment_ids:
                 continue
@@ -126,7 +153,9 @@ def partial_downstream_batches(
                 batches.append(segment_ids)
                 seen_batches.add(key)
                 covered_segments.update(segment_ids)
-    for segment_ids in chunked([item for item in ready_segment_ids if item not in covered_segments], batch_size):
+    for segment_ids in chunked(
+        [item for item in ready_segment_ids if item not in covered_segments], batch_size
+    ):
         key = ",".join(segment_ids)
         if key not in seen_batches:
             batches.append(segment_ids)
@@ -153,9 +182,15 @@ def submit_partial_downstream_batch(
     segment_ids: list[str],
     active_ids: dict[str, str],
 ) -> int | str:
-    global_dependency = active_batch_dependency("global_events", segment_ids, active_ids)
-    info_dependency = active_batch_dependency("information_states", segment_ids, active_ids)
-    memory_dependency = active_batch_dependency("memory_states", segment_ids, active_ids)
+    global_dependency = active_batch_dependency(
+        "global_events", segment_ids, active_ids
+    )
+    info_dependency = active_batch_dependency(
+        "information_states", segment_ids, active_ids
+    )
+    memory_dependency = active_batch_dependency(
+        "memory_states", segment_ids, active_ids
+    )
     if not global_dependency and not info_dependency and not memory_dependency:
         return 0
     submitted = 0
@@ -165,49 +200,111 @@ def submit_partial_downstream_batch(
     belief_name = job_name("belief_states", segment_id, segment_ids=segment_ids)
     trial_name = job_name("candidate_trials", segment_id, segment_ids=segment_ids)
     active_jobs = set(active_ids)
-    active_info_segments = active_segment_numbers_for_stage("information_states", active_jobs)
-    active_memory_segments = active_segment_numbers_for_stage("memory_states", active_jobs)
-    active_belief_segments = active_segment_numbers_for_stage("belief_states", active_jobs)
-    active_trial_segments = active_segment_numbers_for_stage("candidate_trials", active_jobs)
+    active_info_segments = active_segment_numbers_for_stage(
+        "information_states", active_jobs
+    )
+    active_memory_segments = active_segment_numbers_for_stage(
+        "memory_states", active_jobs
+    )
+    active_belief_segments = active_segment_numbers_for_stage(
+        "belief_states", active_jobs
+    )
+    active_trial_segments = active_segment_numbers_for_stage(
+        "candidate_trials", active_jobs
+    )
     segment_numbers = {int(segment_number(item)) for item in segment_ids}
-    if global_dependency and not segment_numbers.issubset(active_info_segments) and info_name not in active_ids:
-        info_job = submit_stage(args, "information_states", segment_id, global_dependency, segment_ids=segment_ids)
+    if (
+        global_dependency
+        and not segment_numbers.issubset(active_info_segments)
+        and info_name not in active_ids
+    ):
+        info_job = submit_stage(
+            args,
+            "information_states",
+            segment_id,
+            global_dependency,
+            segment_ids=segment_ids,
+        )
         if info_job == SUBMIT_LIMIT:
-            print(f"stop downstream submit_limit stage=information_states segment_ids={','.join(segment_ids)}")
+            print(
+                f"stop downstream submit_limit stage=information_states segment_ids={','.join(segment_ids)}"
+            )
             return SUBMIT_LIMIT
         active_ids[info_name] = info_job
         info_dependency = info_job
         submitted += 1
-        print(f"submitted downstream completion stage=information_states segment_ids={','.join(segment_ids)} job={info_job}")
-    if info_dependency and not segment_numbers.issubset(active_memory_segments) and memory_name not in active_ids:
-        memory_job = submit_stage(args, "memory_states", segment_id, info_dependency, segment_ids=segment_ids)
+        print(
+            f"submitted downstream completion stage=information_states segment_ids={','.join(segment_ids)} job={info_job}"
+        )
+    if (
+        info_dependency
+        and not segment_numbers.issubset(active_memory_segments)
+        and memory_name not in active_ids
+    ):
+        memory_job = submit_stage(
+            args, "memory_states", segment_id, info_dependency, segment_ids=segment_ids
+        )
         if memory_job == SUBMIT_LIMIT:
-            print(f"stop downstream submit_limit stage=memory_states segment_ids={','.join(segment_ids)}")
+            print(
+                f"stop downstream submit_limit stage=memory_states segment_ids={','.join(segment_ids)}"
+            )
             return SUBMIT_LIMIT
         active_ids[memory_name] = memory_job
         memory_dependency = memory_job
         submitted += 1
-        print(f"submitted downstream completion stage=memory_states segment_ids={','.join(segment_ids)} job={memory_job}")
-    if memory_dependency and not segment_numbers.issubset(active_belief_segments) and belief_name not in active_ids:
-        belief_job = submit_stage(args, "belief_states", segment_id, memory_dependency, segment_ids=segment_ids)
+        print(
+            f"submitted downstream completion stage=memory_states segment_ids={','.join(segment_ids)} job={memory_job}"
+        )
+    if (
+        memory_dependency
+        and not segment_numbers.issubset(active_belief_segments)
+        and belief_name not in active_ids
+    ):
+        belief_job = submit_stage(
+            args,
+            "belief_states",
+            segment_id,
+            memory_dependency,
+            segment_ids=segment_ids,
+        )
         if belief_job == SUBMIT_LIMIT:
-            print(f"stop downstream submit_limit stage=belief_states segment_ids={','.join(segment_ids)}")
+            print(
+                f"stop downstream submit_limit stage=belief_states segment_ids={','.join(segment_ids)}"
+            )
             return SUBMIT_LIMIT
         active_ids[belief_name] = belief_job
         submitted += 1
-        print(f"submitted downstream completion stage=belief_states segment_ids={','.join(segment_ids)} job={belief_job}")
-    if info_dependency and not segment_numbers.issubset(active_trial_segments) and trial_name not in active_ids:
-        trial_job = submit_stage(args, "candidate_trials", segment_id, info_dependency, segment_ids=segment_ids)
+        print(
+            f"submitted downstream completion stage=belief_states segment_ids={','.join(segment_ids)} job={belief_job}"
+        )
+    if (
+        info_dependency
+        and not segment_numbers.issubset(active_trial_segments)
+        and trial_name not in active_ids
+    ):
+        trial_job = submit_stage(
+            args,
+            "candidate_trials",
+            segment_id,
+            info_dependency,
+            segment_ids=segment_ids,
+        )
         if trial_job == SUBMIT_LIMIT:
-            print(f"stop downstream submit_limit stage=candidate_trials segment_ids={','.join(segment_ids)}")
+            print(
+                f"stop downstream submit_limit stage=candidate_trials segment_ids={','.join(segment_ids)}"
+            )
             return SUBMIT_LIMIT
         active_ids[trial_name] = trial_job
         submitted += 1
-        print(f"submitted downstream completion stage=candidate_trials segment_ids={','.join(segment_ids)} job={trial_job}")
+        print(
+            f"submitted downstream completion stage=candidate_trials segment_ids={','.join(segment_ids)} job={trial_job}"
+        )
     return submitted
 
 
-def has_unsubmitted_ready_downstream(args: argparse.Namespace, statuses: dict[str, SegmentStatus]) -> bool:
+def has_unsubmitted_ready_downstream(
+    args: argparse.Namespace, statuses: dict[str, SegmentStatus]
+) -> bool:
     active_jobs = active_job_names()
     active_segments_by_stage = {
         stage: active_segment_numbers_for_stage(stage, active_jobs)
@@ -225,14 +322,17 @@ def has_unsubmitted_ready_downstream(args: argparse.Namespace, statuses: dict[st
         active_stages = {
             stage
             for stage in DOWNSTREAM_STAGES
-            if segment_index in active_segments_by_stage[stage] or job_name(stage, segment_id) in active_jobs
+            if segment_index in active_segments_by_stage[stage]
+            or job_name(stage, segment_id) in active_jobs
         }
         if active_stages and active_stages != set(DOWNSTREAM_STAGES):
             return True
         if active_stages == set(DOWNSTREAM_STAGES):
             continue
-        if downstream_marker_path(args.annotation_root, segment_id).exists() and not args.force:
+        if (
+            downstream_marker_path(args.annotation_root, segment_id).exists()
+            and not args.force
+        ):
             continue
         return True
     return False
-

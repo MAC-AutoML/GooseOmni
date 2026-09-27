@@ -135,7 +135,9 @@ def qwen_perception_stage(context: Any) -> dict[str, Any]:
     cached = _cache(context, "perception")
     if cached is not None:
         _copy_tree(cached, target)
-        return _result("cache_replay", cached, target, model=context.config.perception_model)
+        return _result(
+            "cache_replay", cached, target, model=context.config.perception_model
+        )
     server_url = os.getenv("QWEN3_OMNI_SERVER_URL")
     if not server_url or not os.getenv("SLURM_JOB_ID"):
         raise RuntimeError(
@@ -185,9 +187,7 @@ def oracle_and_belief_stage(context: Any) -> dict[str, Any]:
         from .ledger_seed import build_seed_ledger
 
         players = [
-            player.player_id
-            for game in context.config.games
-            for player in game.players
+            player.player_id for game in context.config.games for player in game.players
         ]
         ledger_stats = build_seed_ledger(
             context.run_root / "artifacts/fusion", target, players
@@ -199,7 +199,9 @@ def oracle_and_belief_stage(context: Any) -> dict[str, Any]:
         ledger_stats = None
         mode = "cache_replay_and_rebuild"
         source = cached
-    diagnostics = build_decrypto_diagnostics(annotation_root, annotation_root, limit=276)
+    diagnostics = build_decrypto_diagnostics(
+        annotation_root, annotation_root, limit=276
+    )
     candidates = context.run_root / "candidates"
     exported = export_gooseomni_benchmark(annotation_root, candidates)
     return _result(
@@ -274,7 +276,9 @@ def _review_cache(context: Any, source: Path) -> list[dict[str, Any]]:
             "hidden_gold": hidden[trial_id],
             "probe_groups": [group],
         }
-        decision = "accept" if stable_hash(candidate) == stable_hash(final_value) else "repair"
+        decision = (
+            "accept" if stable_hash(candidate) == stable_hash(final_value) else "repair"
+        )
         reason = "replayed from frozen Qwen plus Codex review cache"
         decisions.append(
             {

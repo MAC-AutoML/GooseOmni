@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from gooseomni.config.settings import CONFIG
 from gooseomni.models.pipeline.types import InferenceRequest, InferenceResult
 from gooseomni.models.utils.openai_compat_tester import OpenAICompatTester
-from gooseomni.config.settings import CONFIG
 
 
 class Gemini25FlashClient:
@@ -18,7 +18,11 @@ class Gemini25FlashClient:
         model_config = CONFIG.model("gemini_2_5_flash")
         model_name = model_config.get("model_name", "gemini-2.5-flash")
         tester = OpenAICompatTester(model_name=model_name)
-        media_path = request.require_video_path() if (request.use_video or request.use_audio) else None
+        media_path = (
+            request.require_video_path()
+            if (request.use_video or request.use_audio)
+            else None
+        )
         raw_answer = tester.call(
             media_path,
             request.prompt,
@@ -27,4 +31,6 @@ class Gemini25FlashClient:
             include_images=use_video,
             include_audio=request.use_audio,
         )
-        return InferenceResult(text=raw_answer or "", parsed_answer=raw_answer or "", model=self.model_name)
+        return InferenceResult(
+            text=raw_answer or "", parsed_answer=raw_answer or "", model=self.model_name
+        )

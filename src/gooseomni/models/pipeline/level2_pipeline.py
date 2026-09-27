@@ -10,13 +10,18 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from gooseomni.config.paths import PATHS
 from gooseomni.config.settings import CONFIG
 from gooseomni.models.pipeline.answer_extraction import extract_choice
+from gooseomni.models.pipeline.modality import (
+    add_payload_modality,
+    add_row_modality,
+    modality_metadata,
+    output_path_for,
+)
 from gooseomni.models.pipeline.model_client import ModelClient
-from gooseomni.models.pipeline.modality import add_payload_modality, add_row_modality, modality_metadata, output_path_for
 from gooseomni.models.pipeline.types import InferenceRequest
 from gooseomni.models.utils.dataset_downloader import ensure_default_dataset_available
 from gooseomni.models.utils.openai_compat_tester import OpenAICompatTester
@@ -35,7 +40,7 @@ class Level2Config:
     video_dir: Path
     output_path: Path
     log_dir: Path
-    max_samples: Optional[int] = None
+    max_samples: int | None = None
     start_index: int = 0
     resume: bool = False
     max_retries: int = 5
@@ -50,7 +55,7 @@ class Level2Pipeline:
         self.config = config
         self.logger = self._setup_logger()
         self._tmp_dir = Path(tempfile.mkdtemp(prefix=f"vsync_level2_{self.omni_test.model_name}_"))
-        self._judge_tester: Optional[OpenAICompatTester] = None
+        self._judge_tester: OpenAICompatTester | None = None
         self._judge_model_cfg: dict[str, Any] = {}
 
     def _setup_logger(self) -> logging.Logger:
@@ -129,7 +134,7 @@ class Level2Pipeline:
             str(output_video),
         ]
         try:
-            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
+            result = subprocess.run(cmd, capture_output=True, timeout=60)
             return result.returncode == 0 and output_video.exists() and output_video.stat().st_size > 0
         except Exception as exc:  # noqa: BLE001
             self.logger.warning("ffmpeg cut failed: %s", exc)
@@ -305,7 +310,7 @@ class Level2Pipeline:
         q2_question = str(q2.get("question", "")).strip()
         q2_reference = str(q2.get("answer", "") or "").strip()
         q2_response = ""
-        q2_score: Optional[int] = None
+        q2_score: int | None = None
 
         if q1_answer == "A":
             if q1_correct:

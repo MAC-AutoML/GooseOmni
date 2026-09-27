@@ -15,27 +15,41 @@ def run(cmd: list[str]) -> None:
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
 
 
-def refresh_audio_confirmation_queue(records_path: Path, output_root: Path) -> dict[str, Any]:
+def refresh_audio_confirmation_queue(
+    records_path: Path, output_root: Path
+) -> dict[str, Any]:
     rows = read_jsonl(records_path)
     selected: list[dict[str, Any]] = []
     decision_counts: Counter[str] = Counter()
     for record in rows:
         decision = record.get("codex_human_decision")
         decision_counts[decision or "unknown"] += 1
-        if decision not in {"needs_audio_confirmation", "needs_alias_and_audio_confirmation"}:
+        if decision not in {
+            "needs_audio_confirmation",
+            "needs_alias_and_audio_confirmation",
+        }:
             continue
         utterance = record.get("candidate_utterance") or {}
         selected.append(
@@ -52,7 +66,10 @@ def refresh_audio_confirmation_queue(records_path: Path, output_root: Path) -> d
                 "claim_type": utterance.get("claim_type"),
                 "strategic_function": utterance.get("strategic_function"),
                 "claim_target_players": utterance.get("claim_target_players") or [],
-                "claim_target_display_names": utterance.get("claim_target_display_names") or [],
+                "claim_target_display_names": utterance.get(
+                    "claim_target_display_names"
+                )
+                or [],
                 "qwen_transcript_to_confirm": utterance.get("utterance_text"),
                 "promotion_policy": (
                     "Only promote after exact transcript and any alias mapping are independently confirmed; "
@@ -72,13 +89,23 @@ def refresh_audio_confirmation_queue(records_path: Path, output_root: Path) -> d
     return summary
 
 
-def write_coverage_report(stable_root: Path, records_path: Path, output_path: Path) -> dict[str, Any]:
-    probe_groups = read_jsonl(stable_root / "annotations/diagnostics/probe_groups.jsonl")
-    trials = read_jsonl(stable_root / "benchmark/gooseomni_v1/static_trials/trials.jsonl")
+def write_coverage_report(
+    stable_root: Path, records_path: Path, output_path: Path
+) -> dict[str, Any]:
+    probe_groups = read_jsonl(
+        stable_root / "annotations/diagnostics/probe_groups.jsonl"
+    )
+    trials = read_jsonl(
+        stable_root / "benchmark/gooseomni_v1/static_trials/trials.jsonl"
+    )
     records = read_jsonl(records_path)
 
     query_variables = Counter(
-        ((row.get("query_variable") or {}).get("type") or row.get("query_variable_type") or "unknown")
+        (
+            (row.get("query_variable") or {}).get("type")
+            or row.get("query_variable_type")
+            or "unknown"
+        )
         for row in probe_groups
     )
     probe_types = Counter(row.get("probe_type", "unknown") for row in trials)
@@ -92,7 +119,10 @@ def write_coverage_report(stable_root: Path, records_path: Path, output_path: Pa
         utterance = record.get("candidate_utterance") or {}
         claim_types[utterance.get("claim_type") or "unknown"] += 1
         strategic_functions[utterance.get("strategic_function") or "unknown"] += 1
-        if decision in {"needs_audio_confirmation", "needs_alias_and_audio_confirmation"}:
+        if decision in {
+            "needs_audio_confirmation",
+            "needs_alias_and_audio_confirmation",
+        }:
             audio_candidates += 1
 
     report = {
@@ -120,23 +150,43 @@ def write_coverage_report(stable_root: Path, records_path: Path, output_path: Pa
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Sync meeting-claim extension audit/review/audio queues and coverage report.")
-    parser.add_argument("--results-root", type=Path, default=Path("runs/gooseomni_meeting_claim_grounding_pass123_qwen_batches/results"))
-    parser.add_argument("--review-root", type=Path, default=Path("runs/gooseomni_meeting_claim_grounding_pass123_qwen_batches/review"))
+    parser = argparse.ArgumentParser(
+        description="Sync meeting-claim extension audit/review/audio queues and coverage report."
+    )
+    parser.add_argument(
+        "--results-root",
+        type=Path,
+        default=Path(
+            "runs/gooseomni_meeting_claim_grounding_pass123_qwen_batches/results"
+        ),
+    )
+    parser.add_argument(
+        "--review-root",
+        type=Path,
+        default=Path(
+            "runs/gooseomni_meeting_claim_grounding_pass123_qwen_batches/review"
+        ),
+    )
     parser.add_argument(
         "--strict-review-root",
         type=Path,
-        default=Path("runs/gooseomni_meeting_claim_grounding_pass123_qwen_batches/codex_human_review_strict_high"),
+        default=Path(
+            "runs/gooseomni_meeting_claim_grounding_pass123_qwen_batches/codex_human_review_strict_high"
+        ),
     )
     parser.add_argument(
         "--records-root",
         type=Path,
-        default=Path("runs/gooseomni_meeting_claim_grounding_pass123_qwen_batches/codex_human_review_strict_high/codex_review_records_pass124_full_queue"),
+        default=Path(
+            "runs/gooseomni_meeting_claim_grounding_pass123_qwen_batches/codex_human_review_strict_high/codex_review_records_pass124_full_queue"
+        ),
     )
     parser.add_argument(
         "--stable-root",
         type=Path,
-        default=Path("runs/gooseomni_decrypto_human_verified_combined_pass115_private_witness_safe_route"),
+        default=Path(
+            "runs/gooseomni_decrypto_human_verified_combined_pass115_private_witness_safe_route"
+        ),
     )
     args = parser.parse_args()
 
@@ -184,11 +234,17 @@ def main() -> None:
     summary = {
         "ok": True,
         "audio_confirmation_items": audio_summary["audio_confirmation_items"],
-        "strict_review_records": coverage["meeting_claim_extension_current"]["strict_review_records"],
+        "strict_review_records": coverage["meeting_claim_extension_current"][
+            "strict_review_records"
+        ],
         "stable_probe_groups": coverage["stable_pass115"]["probe_groups"],
         "promotion_to_human_verified_gold": False,
     }
-    write_json(args.results_root.parent / "reports/sync_meeting_claim_extension_state_summary.json", summary)
+    write_json(
+        args.results_root.parent
+        / "reports/sync_meeting_claim_extension_state_summary.json",
+        summary,
+    )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 

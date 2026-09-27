@@ -7,17 +7,26 @@ from typing import Any
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
 
 
 def review_item(item: dict[str, Any]) -> dict[str, Any]:
@@ -30,7 +39,8 @@ def review_item(item: dict[str, Any]) -> dict[str, Any]:
         and confirmed_transcript.get("text_confidence") == "high"
     )
     speaker_ok = (
-        confirmed_speaker.get("canonical_speaker") in {"Gemini", "baile", "beigang", "mojiang", "saoyi", "xiaolu"}
+        confirmed_speaker.get("canonical_speaker")
+        in {"Gemini", "baile", "beigang", "mojiang", "saoyi", "xiaolu"}
         and confirmed_speaker.get("speaker_confidence") == "high"
     )
     no_unsafe_targets = not claim.get("claim_target_players") or all(
@@ -69,13 +79,16 @@ def review_item(item: dict[str, Any]) -> dict[str, Any]:
         "codex_human_merge_decision": decision,
         "review_notes": notes,
         "promotion_to_human_verified_gold": False,
-        "safe_for_probe_draft_generation": decision == "accept_for_qwen_checked_merge_candidate",
+        "safe_for_probe_draft_generation": decision
+        == "accept_for_qwen_checked_merge_candidate",
         "next_required_gate": next_gate,
     }
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Write conservative final merge review records for meeting-claim candidates.")
+    parser = argparse.ArgumentParser(
+        description="Write conservative final merge review records for meeting-claim candidates."
+    )
     parser.add_argument("--merge-queue", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     args = parser.parse_args()
@@ -91,11 +104,15 @@ def main() -> None:
         "merge_queue": args.merge_queue.as_posix(),
         "records": len(records),
         "decision_counts": dict(sorted(decision_counts.items())),
-        "safe_for_probe_draft_generation": sum(1 for record in records if record["safe_for_probe_draft_generation"]),
+        "safe_for_probe_draft_generation": sum(
+            1 for record in records if record["safe_for_probe_draft_generation"]
+        ),
         "promotion_to_human_verified_gold": False,
         "note": "These records authorize qwen_checked probe drafting only; human_verified gold still requires explicit final audio spot-check or independent transcript review.",
     }
-    write_jsonl(args.output_root / "codex_human_gold_merge_review_records.jsonl", records)
+    write_jsonl(
+        args.output_root / "codex_human_gold_merge_review_records.jsonl", records
+    )
     write_json(args.output_root / "summary.json", summary)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 

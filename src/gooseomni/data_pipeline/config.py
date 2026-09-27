@@ -80,7 +80,9 @@ class DataPipelineConfig:
                 if excluded_start < start or excluded_end <= excluded_start:
                     issues.append(f"invalid excluded_range for {game.game_id}")
                 if end is not None and excluded_end > end:
-                    issues.append(f"excluded_range exceeds valid_range for {game.game_id}")
+                    issues.append(
+                        f"excluded_range exceeds valid_range for {game.game_id}"
+                    )
         if require_files and self.source_benchmark is not None:
             if not self.source_benchmark.is_dir():
                 issues.append(f"missing source benchmark: {self.source_benchmark}")
@@ -98,7 +100,9 @@ class DataPipelineConfig:
             if self.max_audio_chunk_sec <= 0:
                 issues.append("max_audio_chunk_sec must be positive")
             if not self.split_on_phase_boundaries:
-                issues.append("strict pilot requires phase-boundary perception splitting")
+                issues.append(
+                    "strict pilot requires phase-boundary perception splitting"
+                )
         return issues
 
 
@@ -116,8 +120,13 @@ def _game_from_dict(value: dict[str, Any]) -> GameInput:
         for row in value.get("players", [])
     )
     raw_range = value.get("valid_range", [0, None])
-    valid_range = (float(raw_range[0]), None if raw_range[1] is None else float(raw_range[1]))
-    excluded = tuple((float(row[0]), float(row[1])) for row in value.get("excluded_ranges", []))
+    valid_range = (
+        float(raw_range[0]),
+        None if raw_range[1] is None else float(raw_range[1]),
+    )
+    excluded = tuple(
+        (float(row[0]), float(row[1])) for row in value.get("excluded_ranges", [])
+    )
     return GameInput(str(value["game_id"]), players, valid_range, excluded)
 
 
@@ -146,18 +155,14 @@ def load_data_config(path: str | Path) -> DataPipelineConfig:
             if payload.get("source_benchmark")
             else None
         ),
-        dataset_root=_rooted_path(
-            payload.get("dataset_root", "data/gooseomni")
-        ),
+        dataset_root=_rooted_path(payload.get("dataset_root", "data/gooseomni")),
         stage_cache={
             str(key): _rooted_path(value)
             for key, value in (payload.get("cache", {}) or {}).items()
         },
         pipeline=str(payload.get("pipeline", "legacy_v2")),
         reference_player=str(alignment.get("reference_player", "Gemini")),
-        minimum_alignment_anchors=int(
-            alignment.get("minimum_anchors_per_episode", 3)
-        ),
+        minimum_alignment_anchors=int(alignment.get("minimum_anchors_per_episode", 3)),
         median_residual_limit_sec=float(
             alignment.get("median_residual_limit_sec", 1.0)
         ),
@@ -173,8 +178,6 @@ def load_data_config(path: str | Path) -> DataPipelineConfig:
             perception.get("split_on_phase_boundaries", False)
         ),
         minimum_pilot_episodes=int(pilot_gates.get("minimum_episodes", 5)),
-        minimum_trials_per_layer=int(
-            pilot_gates.get("minimum_trials_per_layer", 30)
-        ),
+        minimum_trials_per_layer=int(pilot_gates.get("minimum_trials_per_layer", 30)),
         registry=dict(payload.get("registry", {}) or {}),
     )

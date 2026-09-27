@@ -1,31 +1,24 @@
-#!/usr/bin/env python3
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import json
 import re
-import sys
 from pathlib import Path
-
-
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from gooseomni.models.utils.omni_http_client import OmniHttpClient
 
-DEFAULT_INPUT = ROOT / "results" / "results_qwen3_omni_level2_extended_audio-video_offline-q2.json"
-DEFAULT_OUTPUT = ROOT / "results" / "results_qwen3_omni_level2_extended_audio-video_qwen3-judge.json"
+#!/usr/bin/env python3
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+DEFAULT_INPUT = (
+    ROOT / "results" / "results_qwen3_omni_level2_extended_audio-video_offline-q2.json"
+)
+DEFAULT_OUTPUT = (
+    ROOT / "results" / "results_qwen3_omni_level2_extended_audio-video_qwen3-judge.json"
+)
 DEFAULT_DUMMY_VIDEO = ROOT / "data" / "level_2_extended" / "videos" / "yang_gen_020.mp4"
 
 
@@ -58,7 +51,9 @@ def _build_prompt(reference: str, candidate: str) -> str:
     )
 
 
-def score_file(input_path: Path, output_path: Path, server_url: str, dummy_video: Path) -> None:
+def score_file(
+    input_path: Path, output_path: Path, server_url: str, dummy_video: Path
+) -> None:
     payload = json.loads(input_path.read_text(encoding="utf-8"))
     rows = payload.get("results", [])
     client = OmniHttpClient(server_url)
@@ -88,17 +83,23 @@ def score_file(input_path: Path, output_path: Path, server_url: str, dummy_video
     scores = [
         float(row["q2_score"])
         for row in rows
-        if isinstance(row.get("q2_score"), (int, float)) and bool(row.get("q1_correct")) and row.get("q2_reference")
+        if isinstance(row.get("q2_score"), (int, float))
+        and bool(row.get("q1_correct"))
+        and row.get("q2_reference")
     ]
     payload["q2_avg_score"] = sum(scores) / len(scores) if scores else 0.0
     payload["q2_count"] = len(scores)
     payload["q2_judge_model"] = "qwen3_omni"
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    output_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Score Level 2 Q2 responses with a local Omni server")
+    parser = argparse.ArgumentParser(
+        description="Score Level 2 Q2 responses with a local Omni server"
+    )
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--server-url", required=True)

@@ -1,30 +1,24 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import json
 import os
 import re
 import subprocess
-import time
 from dataclasses import dataclass
 from pathlib import Path
-
 
 PLAYERS = ("Gemini", "baile", "beigang", "mojiang", "saoyi", "xiaolu")
 UPSTREAM_STAGES = ("pov_events", "utterances", "phase_events")
 UPSTREAM_CHAIN_STAGE = "upstream_chain"
 UPSTREAM_ACTIVE_STAGES = UPSTREAM_STAGES + (UPSTREAM_CHAIN_STAGE,)
-DOWNSTREAM_STAGES = ("global_events", "information_states", "memory_states", "belief_states", "candidate_trials")
+DOWNSTREAM_STAGES = (
+    "global_events",
+    "information_states",
+    "memory_states",
+    "belief_states",
+    "candidate_trials",
+)
 DOWNSTREAM_CHAIN_STAGE = "downstream_chain"
 DOWNSTREAM_ACTIVE_STAGES = DOWNSTREAM_STAGES + (DOWNSTREAM_CHAIN_STAGE,)
 STAGE_ABBREVIATIONS = {
@@ -57,7 +51,11 @@ class SegmentStatus:
 
     @property
     def upstream_complete(self) -> bool:
-        return self.pov_events == len(PLAYERS) and self.utterances == len(PLAYERS) and self.phase_events
+        return (
+            self.pov_events == len(PLAYERS)
+            and self.utterances == len(PLAYERS)
+            and self.phase_events
+        )
 
     @property
     def ready_for_global(self) -> bool:
@@ -75,11 +73,21 @@ class SegmentStatus:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Submit Qwen3-Omni Omni Goose oracle annotation jobs.")
+    parser = argparse.ArgumentParser(
+        description="Submit Qwen3-Omni Omni Goose oracle annotation jobs."
+    )
     parser.add_argument("--dataset-root", default=Path("data/gooseomni"), type=Path)
     parser.add_argument("--segments-jsonl", default=None, type=Path)
-    parser.add_argument("--annotation-root", default=Path("runs/gooseomni_oracle_pass1/annotations"), type=Path)
-    parser.add_argument("--slurm-script", default=Path("configs/slurm/qwen3_omni_oracle_2gpu_stage.slurm"), type=Path)
+    parser.add_argument(
+        "--annotation-root",
+        default=Path("runs/gooseomni_oracle_pass1/annotations"),
+        type=Path,
+    )
+    parser.add_argument(
+        "--slurm-script",
+        default=Path("configs/slurm/qwen3_omni_oracle_2gpu_stage.slurm"),
+        type=Path,
+    )
     parser.add_argument(
         "--multi-worker-slurm-script",
         default=Path("configs/slurm/qwen3_omni_oracle_4x2_local.slurm"),
@@ -100,8 +108,12 @@ def parse_args() -> argparse.Namespace:
         ],
         default="status",
     )
-    parser.add_argument("--start-index", default=1, type=int, help="1-based segment index.")
-    parser.add_argument("--end-index", default=None, type=int, help="Inclusive 1-based segment index.")
+    parser.add_argument(
+        "--start-index", default=1, type=int, help="1-based segment index."
+    )
+    parser.add_argument(
+        "--end-index", default=None, type=int, help="Inclusive 1-based segment index."
+    )
     parser.add_argument(
         "--upstream-start-index",
         default=None,
@@ -146,7 +158,12 @@ def parse_args() -> argparse.Namespace:
         type=int,
         help="Maximum repair jobs to submit before upstream attempts in submit-balanced mode.",
     )
-    parser.add_argument("--batch-size", default=4, type=int, help="Number of upstream segments per 2-GPU job.")
+    parser.add_argument(
+        "--batch-size",
+        default=4,
+        type=int,
+        help="Number of upstream segments per 2-GPU job.",
+    )
     parser.add_argument("--multi-worker-workers", default=4, type=int)
     parser.add_argument(
         "--multi-worker-stage-plan",
@@ -164,7 +181,9 @@ def parse_args() -> argparse.Namespace:
         help="When submit-balanced cannot submit the 4x2 job due to the Slurm submit limit, allow fallback submission of small 2-GPU jobs.",
     )
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--force", action="store_true", help="Ignore existing submission markers.")
+    parser.add_argument(
+        "--force", action="store_true", help="Ignore existing submission markers."
+    )
     parser.add_argument("--qwen-max-tokens", default="16384")
     parser.add_argument("--qwen-text-merge-max-tokens", default="32768")
     parser.add_argument("--qwen-video-fps", default="1.0")
@@ -175,7 +194,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_segments(path: Path) -> list[dict]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def count_json(path: Path) -> int:
@@ -209,15 +232,23 @@ def load_candidate_counts(annotation_root: Path) -> dict[str, int]:
     return counts
 
 
-def segment_status(annotation_root: Path, segment_id: str, candidate_counts: dict[str, int]) -> SegmentStatus:
+def segment_status(
+    annotation_root: Path, segment_id: str, candidate_counts: dict[str, int]
+) -> SegmentStatus:
     game_root = annotation_root
     return SegmentStatus(
         segment_id=segment_id,
         pov_events=count_json(game_root / "pov_events" / "g001" / segment_id),
         utterances=count_json(game_root / "utterances" / "g001" / segment_id),
-        phase_events=valid_json_file(game_root / "phase_events" / "g001" / f"{segment_id}.json"),
-        global_events=valid_json_file(game_root / "global_events" / "g001" / f"{segment_id}.json"),
-        information_states=count_json(game_root / "information_states" / "g001" / segment_id),
+        phase_events=valid_json_file(
+            game_root / "phase_events" / "g001" / f"{segment_id}.json"
+        ),
+        global_events=valid_json_file(
+            game_root / "global_events" / "g001" / f"{segment_id}.json"
+        ),
+        information_states=count_json(
+            game_root / "information_states" / "g001" / segment_id
+        ),
         memory_states=count_json(game_root / "memory_states" / "g001" / segment_id),
         belief_states=count_json(game_root / "belief_states" / "g001" / segment_id),
         candidate_trials=candidate_counts.get(segment_id, 0),
@@ -258,17 +289,23 @@ def stage_complete(status: SegmentStatus, stage: str) -> bool:
     raise ValueError(f"unsupported upstream stage: {stage}")
 
 
-def run_command(cmd: list[str], *, dry_run: bool, env: dict[str, str] | None = None) -> str:
+def run_command(
+    cmd: list[str], *, dry_run: bool, env: dict[str, str] | None = None
+) -> str:
     env_prefix = ""
     if env:
-        env_prefix = " ".join(f"{key}={value}" for key, value in sorted(env.items())) + " "
+        env_prefix = (
+            " ".join(f"{key}={value}" for key, value in sorted(env.items())) + " "
+        )
     print(env_prefix + " ".join(cmd))
     if dry_run:
         return "DRY_RUN"
     run_env = os.environ.copy()
     if env:
         run_env.update(env)
-    result = subprocess.run(cmd, check=False, capture_output=True, text=True, env=run_env)
+    result = subprocess.run(
+        cmd, check=False, capture_output=True, text=True, env=run_env
+    )
     if result.returncode == 0:
         return result.stdout.strip()
     stderr = result.stderr.strip()
@@ -277,7 +314,9 @@ def run_command(cmd: list[str], *, dry_run: bool, env: dict[str, str] | None = N
     if "AssocGrpSubmitJobsLimit" in message or "job submit limit" in message:
         print(f"submit_limit_reached: {message}")
         return SUBMIT_LIMIT
-    raise subprocess.CalledProcessError(result.returncode, cmd, output=result.stdout, stderr=result.stderr)
+    raise subprocess.CalledProcessError(
+        result.returncode, cmd, output=result.stdout, stderr=result.stderr
+    )
 
 
 def sbatch_env(
@@ -317,7 +356,11 @@ def submit_stage(
     segment_ids: list[str] | None = None,
 ) -> str:
     env = sbatch_env(args, stage, segment_id, target_player, segment_ids)
-    cmd = ["sbatch", "--parsable", f"--job-name={job_name(stage, segment_id, target_player, segment_ids)}"]
+    cmd = [
+        "sbatch",
+        "--parsable",
+        f"--job-name={job_name(stage, segment_id, target_player, segment_ids)}",
+    ]
     if dependency:
         cmd.append(f"--dependency=afterok:{dependency}")
     cmd.append(args.slurm_script.as_posix())
@@ -371,7 +414,9 @@ def queue_submit_allowed(args: argparse.Namespace) -> bool:
     if counts is None:
         return False
     total_cap_hit = args.max_total_jobs > 0 and counts["total"] >= args.max_total_jobs
-    pending_cap_hit = args.max_pending_jobs > 0 and counts["pending"] >= args.max_pending_jobs
+    pending_cap_hit = (
+        args.max_pending_jobs > 0 and counts["pending"] >= args.max_pending_jobs
+    )
     if total_cap_hit or pending_cap_hit:
         print(
             "skip submit queue_cap "
@@ -385,5 +430,3 @@ def queue_submit_allowed(args: argparse.Namespace) -> bool:
         f"max_total={args.max_total_jobs} max_pending={args.max_pending_jobs}"
     )
     return True
-
-

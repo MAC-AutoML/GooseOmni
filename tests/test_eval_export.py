@@ -5,8 +5,8 @@ from pathlib import Path
 
 from gooseomni.annotation.eval_export import (
     EventAlignedExportConfig,
-    _ffmpeg_cut_command,
     _aligned_window,
+    _ffmpeg_cut_command,
     export_event_aligned_omni_eval,
 )
 
@@ -109,7 +109,9 @@ def test_export_event_aligned_omni_eval_writes_level2_shape(
         ),
         encoding="utf-8",
     )
-    monkeypatch.setattr("gooseomni.annotation.eval_export.cut_video", lambda **kwargs: None)
+    monkeypatch.setattr(
+        "gooseomni.annotation.eval_export.cut_video", lambda **kwargs: None
+    )
 
     stats = export_event_aligned_omni_eval(
         EventAlignedExportConfig(
@@ -125,7 +127,9 @@ def test_export_event_aligned_omni_eval_writes_level2_shape(
     )
 
     annotations = json.loads((tmp_path / "level2" / "annotations.json").read_text())
-    samples = (tmp_path / "level2" / "samples.jsonl").read_text(encoding="utf-8").splitlines()
+    samples = (
+        (tmp_path / "level2" / "samples.jsonl").read_text(encoding="utf-8").splitlines()
+    )
 
     assert stats == {"samples": 1, "skipped": 0}
     assert len(samples) == 1

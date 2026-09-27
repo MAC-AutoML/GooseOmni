@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import sys
 from pathlib import Path as _Path
 
@@ -102,7 +103,7 @@ def build_phase_index(source_root: Path, game_id: str) -> dict[str, dict[str, An
         by_episode.setdefault(row["episode_id"], []).append(row)
 
     enriched: dict[str, dict[str, Any]] = {}
-    for episode_id, rows in by_episode.items():
+    for _episode_id, rows in by_episode.items():
         gameplay_round = 0
         meeting_round = 0
         for idx, row in enumerate(rows):

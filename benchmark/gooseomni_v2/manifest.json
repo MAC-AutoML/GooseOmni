@@ -332,7 +332,7 @@
     "qwen3_omni",
     "legacy_codex_qwen_review"
   ],
-  "source": "/public/home/xty/workdir/omni_goose/benchmark/gooseomni_v1",
+  "source": "benchmark/gooseomni_v1",
   "total_bytes": 129810317,
   "validation": {
     "line_counts": {

@@ -5,9 +5,17 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 PLAYERS = {"Gemini", "baile", "beigang", "mojiang", "saoyi", "xiaolu"}
-NON_CANONICAL_NAMES = {"紫林", "猫手", "牛六", "温天", "雪豹", "海螺", "小杨鸭", "革命你"}
+NON_CANONICAL_NAMES = {
+    "紫林",
+    "猫手",
+    "牛六",
+    "温天",
+    "雪豹",
+    "海螺",
+    "小杨鸭",
+    "革命你",
+}
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -16,12 +24,17 @@ def read_json(path: Path) -> dict[str, Any]:
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
 
 
 def has_noncanonical_display(display_names: list[Any]) -> bool:
@@ -29,7 +42,9 @@ def has_noncanonical_display(display_names: list[Any]) -> bool:
     return any(name in text for name in NON_CANONICAL_NAMES)
 
 
-def audit_utterance(result_id: str, utterance: dict[str, Any]) -> tuple[list[str], dict[str, Any]]:
+def audit_utterance(
+    result_id: str, utterance: dict[str, Any]
+) -> tuple[list[str], dict[str, Any]]:
     issues: list[str] = []
     target_players = utterance.get("claim_target_players") or []
     target_display_names = utterance.get("claim_target_display_names") or []
@@ -43,9 +58,15 @@ def audit_utterance(result_id: str, utterance: dict[str, Any]) -> tuple[list[str
         issues.append("noncanonical_display_mapped_to_canonical_target")
     if utterance.get("needs_human_review") is not True:
         issues.append("needs_human_review_not_true")
-    if utterance.get("canonical_speaker") not in PLAYERS and utterance.get("canonical_speaker") != "unknown":
+    if (
+        utterance.get("canonical_speaker") not in PLAYERS
+        and utterance.get("canonical_speaker") != "unknown"
+    ):
         issues.append("invalid_canonical_speaker")
-    if utterance.get("tom_relevance") == "high" and utterance.get("text_confidence") == "high":
+    if (
+        utterance.get("tom_relevance") == "high"
+        and utterance.get("text_confidence") == "high"
+    ):
         review_priority = "high"
     elif utterance.get("tom_relevance") in {"high", "medium"}:
         review_priority = "medium"
@@ -97,7 +118,9 @@ def audit_result(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Audit Qwen meeting-claim grounding outputs before Codex-human review.")
+    parser = argparse.ArgumentParser(
+        description="Audit Qwen meeting-claim grounding outputs before Codex-human review."
+    )
     parser.add_argument("--results-root", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     args = parser.parse_args()
@@ -117,13 +140,17 @@ def main() -> None:
         "ok": True,
         "results": len(rows),
         "candidate_utterances": len(candidates),
-        "high_priority_candidates": sum(1 for row in candidates if row["review_priority"] == "high"),
+        "high_priority_candidates": sum(
+            1 for row in candidates if row["review_priority"] == "high"
+        ),
         "issue_counts": dict(sorted(issue_counts.items())),
         "promotion_allowed_without_codex_human_review": False,
     }
     write_json(args.output_root / "qwen_meeting_claim_audit_summary.json", summary)
     write_jsonl(args.output_root / "qwen_meeting_claim_audit_rows.jsonl", rows)
-    write_jsonl(args.output_root / "candidate_claims_for_codex_human_review.jsonl", candidates)
+    write_jsonl(
+        args.output_root / "candidate_claims_for_codex_human_review.jsonl", candidates
+    )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 

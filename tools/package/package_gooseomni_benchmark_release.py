@@ -1,30 +1,22 @@
 from __future__ import annotations
-import sys
-from pathlib import Path as _Path
-
-_REPO_ROOT = next(
-    _parent for _parent in _Path(__file__).resolve().parents if (_parent / "pyproject.toml").exists()
-)
-for _path in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
 
 import argparse
 import hashlib
 import json
 import shutil
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
-
+from typing import Any
 
 DEFAULT_DATASET_ROOT = Path("data/gooseomni")
 DEFAULT_RUN_ROOT = Path("runs/gooseomni_oracle_pass1")
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Package an Omni Goose ToM benchmark release directory.")
+    parser = argparse.ArgumentParser(
+        description="Package an Omni Goose ToM benchmark release directory."
+    )
     parser.add_argument("--dataset-root", default=DEFAULT_DATASET_ROOT, type=Path)
     parser.add_argument("--run-root", default=DEFAULT_RUN_ROOT, type=Path)
     parser.add_argument("--annotation-root", default=None, type=Path)
@@ -33,9 +25,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--release-name", default="GooseOmni-ToM")
     parser.add_argument("--version", default="v1")
-    parser.add_argument("--include-videos", action="store_true", help="Copy aligned videos into the release.")
-    parser.add_argument("--include-annotations", action="store_true", help="Copy structured Qwen annotation JSON files.")
-    parser.add_argument("--allow-incomplete", action="store_true", help="Allow packaging when completion validation is not complete.")
+    parser.add_argument(
+        "--include-videos",
+        action="store_true",
+        help="Copy aligned videos into the release.",
+    )
+    parser.add_argument(
+        "--include-annotations",
+        action="store_true",
+        help="Copy structured Qwen annotation JSON files.",
+    )
+    parser.add_argument(
+        "--allow-incomplete",
+        action="store_true",
+        help="Allow packaging when completion validation is not complete.",
+    )
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
 
@@ -47,7 +51,11 @@ def read_json(path: Path) -> Any:
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def copy_file(src: Path, dst: Path) -> None:
@@ -114,8 +122,16 @@ def write_release_readme(
     include_annotations: bool,
     counts: dict[str, Any],
 ) -> None:
-    video_note = "included under data/gooseomni/videos/" if include_videos else "not included; paths are preserved in metadata"
-    annotation_note = "included under annotations/" if include_annotations else "not included except candidate_trials.jsonl"
+    video_note = (
+        "included under data/gooseomni/videos/"
+        if include_videos
+        else "not included; paths are preserved in metadata"
+    )
+    annotation_note = (
+        "included under annotations/"
+        if include_annotations
+        else "not included except candidate_trials.jsonl"
+    )
     text = f"""# {release_name} {version}
 
 This release contains the Omni Goose GooseOmni / Theory-of-Mind benchmark export.
@@ -135,12 +151,12 @@ This release contains the Omni Goose GooseOmni / Theory-of-Mind benchmark export
 
 ## Counts
 
-- segments: {counts['segments']}
-- videos: {counts['videos']}
-- candidate_trials: {counts['candidate_trials']}
-- benchmark_trials: {counts['benchmark_trials']}
-- review_queue: {counts['review_queue']}
-- validation_complete: {counts['validation_complete']}
+- segments: {counts["segments"]}
+- videos: {counts["videos"]}
+- candidate_trials: {counts["candidate_trials"]}
+- benchmark_trials: {counts["benchmark_trials"]}
+- review_queue: {counts["review_queue"]}
+- validation_complete: {counts["validation_complete"]}
 
 ## Media And Annotation Scope
 
@@ -168,7 +184,9 @@ def main() -> None:
     args = parse_args()
     annotation_root = args.annotation_root or args.run_root / "annotations"
     benchmark_root = args.benchmark_root or args.run_root / "benchmark"
-    validation_path = args.validation_path or args.run_root / "completion_validation.json"
+    validation_path = (
+        args.validation_path or args.run_root / "completion_validation.json"
+    )
 
     validation = read_json(validation_path)
     if not validation.get("complete") and not args.allow_incomplete:
@@ -195,7 +213,13 @@ def main() -> None:
         copy_file(md_validation, args.output_dir / "completion_validation.md")
 
     candidate_src = annotation_root / "candidate_trials" / "g001_candidate_trials.jsonl"
-    copy_file(candidate_src, args.output_dir / "annotations" / "candidate_trials" / "g001_candidate_trials.jsonl")
+    copy_file(
+        candidate_src,
+        args.output_dir
+        / "annotations"
+        / "candidate_trials"
+        / "g001_candidate_trials.jsonl",
+    )
     if args.include_annotations:
         copy_tree(
             annotation_root,
@@ -245,7 +269,13 @@ def main() -> None:
         counts=counts,
     )
     write_checksums(args.output_dir)
-    print(json.dumps({"output_dir": args.output_dir.as_posix(), "counts": counts}, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {"output_dir": args.output_dir.as_posix(), "counts": counts},
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

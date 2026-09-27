@@ -45,6 +45,7 @@ BENCHMARK_SCRIPTS = {
     "package": ["tools/package/package_gooseomni_benchmark_release.py"],
 }
 
+
 def _runtime_env() -> dict[str, str]:
     env = os.environ.copy()
     src = str(PATHS.root / "src")
@@ -58,7 +59,9 @@ def _runtime_env() -> dict[str, str]:
 def _run_scripts(scripts: Sequence[str], arguments: Sequence[str]) -> int:
     for script in scripts:
         command = [sys.executable, str(PATHS.root / script), *arguments]
-        completed = subprocess.run(command, cwd=PATHS.root, env=_runtime_env(), check=False)
+        completed = subprocess.run(
+            command, cwd=PATHS.root, env=_runtime_env(), check=False
+        )
         if completed.returncode:
             return completed.returncode
     return 0
@@ -68,7 +71,9 @@ def _run_internal_script(script: str, arguments: Sequence[str]) -> int:
     path = (PATHS.root / script).resolve()
     tools_root = (PATHS.root / "tools").resolve()
     if path.suffix != ".py" or tools_root not in path.parents or not path.is_file():
-        raise ValueError(f"Internal script must be a Python file under tools/: {script}")
+        raise ValueError(
+            f"Internal script must be a Python file under tools/: {script}"
+        )
     return _run_scripts([str(path.relative_to(PATHS.root))], arguments)
 
 
@@ -134,7 +139,9 @@ def _models_check(name: str | None) -> int:
     return 1 if failed else 0
 
 
-def _models_serve(name: str, host: str | None, port: int | None, extra: list[str]) -> int:
+def _models_serve(
+    name: str, host: str | None, port: int | None, extra: list[str]
+) -> int:
     spec = get_model_spec(name)
     if spec.kind != "local" or spec.resolved_server_script is None:
         raise ValueError(f"Model {name} does not provide a local server")
@@ -151,7 +158,9 @@ def _models_serve(name: str, host: str | None, port: int | None, extra: list[str
         str(port or int(model_config.get("port", 0))),
         *extra,
     ]
-    return subprocess.run(command, cwd=PATHS.root, env=_runtime_env(), check=False).returncode
+    return subprocess.run(
+        command, cwd=PATHS.root, env=_runtime_env(), check=False
+    ).returncode
 
 
 def _add_forwarding_domain(
@@ -272,7 +281,11 @@ def _run_data_command(args: argparse.Namespace) -> int:
     config = load_data_config(config_path)
     if args.action == "validate-input":
         issues = config.validate_inputs(require_files=True)
-        print(json.dumps({"ok": not issues, "issues": issues}, ensure_ascii=False, indent=2))
+        print(
+            json.dumps(
+                {"ok": not issues, "issues": issues}, ensure_ascii=False, indent=2
+            )
+        )
         return 1 if issues else 0
     runner = DataPipelineRunner(config)
     from_stage = getattr(args, "from_stage", None)
@@ -287,7 +300,9 @@ def _run_data_command(args: argparse.Namespace) -> int:
 def _run_eval_command(args: argparse.Namespace) -> int:
     if args.action in {"plan", "run"}:
         config = _evaluation_config(args)
-        result = plan_evaluation(config) if args.action == "plan" else run_evaluation(config)
+        result = (
+            plan_evaluation(config) if args.action == "plan" else run_evaluation(config)
+        )
     elif args.action == "score":
         result = score_evaluation(args.run, args.benchmark)
     else:
@@ -336,7 +351,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _models_serve(args.model, args.host, args.port, args.arguments)
 
     if args.domain == "internal":
-        forwarded = args.arguments[1:] if args.arguments[:1] == ["--"] else args.arguments
+        forwarded = (
+            args.arguments[1:] if args.arguments[:1] == ["--"] else args.arguments
+        )
         return _run_internal_script(args.script, forwarded)
 
     if args.domain == "data":

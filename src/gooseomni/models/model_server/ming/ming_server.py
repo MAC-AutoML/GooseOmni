@@ -15,15 +15,16 @@ from typing import Any
 
 from flask import Flask, jsonify, request
 
-ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 from gooseomni.config.settings import CONFIG  # noqa: E402
 from gooseomni.models.model_server.local_common.gpu_visibility import (  # noqa: E402
     configure_cuda_visible_devices,
 )
-from gooseomni.models.model_server.local_common.http import parse_infer_request  # noqa: E402
+from gooseomni.models.model_server.local_common.http import (
+    parse_infer_request,  # noqa: E402
+)
+
+ROOT = Path(__file__).resolve().parents[3]
+
 
 warnings.filterwarnings("ignore")
 
@@ -34,7 +35,11 @@ PHYSICAL_GPUS = configure_cuda_visible_devices(
 )
 
 MODEL_PATH = os.path.expanduser(
-    str(CONFIG.model("ming").get("model_path") or os.getenv("MING_MODEL_PATH") or "/publicssd/xty/models/Ming-flash-omni-2.0")
+    str(
+        CONFIG.model("ming").get("model_path")
+        or os.getenv("MING_MODEL_PATH")
+        or "/publicssd/xty/models/Ming-flash-omni-2.0"
+    )
 )
 BUNDLED_CODE_PATH = str((Path(__file__).resolve().parent / "ming_lib").resolve())
 MAX_NEW_TOKENS = int(
@@ -57,7 +62,9 @@ def _build_split_device_map() -> dict[str, int]:
         try:
             with cfg_file.open("r", encoding="utf-8") as f:
                 cfg = json.load(f)
-            num_layers = int(cfg.get("llm_config", {}).get("num_hidden_layers", num_layers))
+            num_layers = int(
+                cfg.get("llm_config", {}).get("num_hidden_layers", num_layers)
+            )
         except Exception:  # noqa: BLE001
             pass
     if world_size == 1:
@@ -135,8 +142,14 @@ def _load_model() -> None:
     # default frame count so eager attention remains viable on 80 GiB GPUs.
     os.environ.setdefault("MAX_FPS", str(MING_VIDEO_FPS))
     print("[ming] attn_implementation=eager", flush=True)
-    print(f"[ming] HF_ENABLE_PARALLEL_LOADING={os.getenv('HF_ENABLE_PARALLEL_LOADING')}", flush=True)
-    print(f"[ming] HF_PARALLEL_LOADING_WORKERS={os.getenv('HF_PARALLEL_LOADING_WORKERS')}", flush=True)
+    print(
+        f"[ming] HF_ENABLE_PARALLEL_LOADING={os.getenv('HF_ENABLE_PARALLEL_LOADING')}",
+        flush=True,
+    )
+    print(
+        f"[ming] HF_PARALLEL_LOADING_WORKERS={os.getenv('HF_PARALLEL_LOADING_WORKERS')}",
+        flush=True,
+    )
 
     import torch
     import transformers.integrations.accelerate as tf_accelerate
@@ -153,8 +166,12 @@ def _load_model() -> None:
     if hasattr(tf_import_utils.is_accelerate_available, "cache_clear"):
         tf_import_utils.is_accelerate_available.cache_clear()
 
-    def _accelerate_runtime_available(_min_version: str = tf_import_utils.ACCELERATE_MIN_VERSION) -> bool:
-        ok, _ver = tf_import_utils._is_package_available("accelerate", return_version=True)
+    def _accelerate_runtime_available(
+        _min_version: str = tf_import_utils.ACCELERATE_MIN_VERSION,
+    ) -> bool:
+        ok, _ver = tf_import_utils._is_package_available(
+            "accelerate", return_version=True
+        )
         return bool(ok)
 
     tf_import_utils.is_accelerate_available = _accelerate_runtime_available
@@ -173,20 +190,30 @@ def _load_model() -> None:
         tf_accelerate.get_max_layer_size = acc_utils_modeling.get_max_layer_size
     if not hasattr(tf_accelerate, "get_module_size_with_ties"):
         # Compatibility implementation when accelerate<1.1 misses this function (following transformers call signature)
-        def _fallback_get_module_size_with_ties(tied_params, module_size, module_sizes, modules_to_treat):
+        def _fallback_get_module_size_with_ties(
+            tied_params, module_size, module_sizes, modules_to_treat
+        ):
             if len(tied_params) < 1:
                 return module_size, [], []
             tied_module_names = []
             tied_modules = []
 
             for tied_param in tied_params:
-                tied_module_index = [i for i, (n, _) in enumerate(modules_to_treat) if tied_param.startswith(n + ".")][0]
+                tied_module_index = [
+                    i
+                    for i, (n, _) in enumerate(modules_to_treat)
+                    if tied_param.startswith(n + ".")
+                ][0]
                 tied_module_names.append(modules_to_treat[tied_module_index][0])
                 tied_modules.append(modules_to_treat[tied_module_index][1])
 
             module_size_with_ties = module_size
-            for tied_param, tied_module_name in zip(tied_params, tied_module_names, strict=True):
-                module_size_with_ties += module_sizes[tied_module_name] - module_sizes[tied_param]
+            for tied_param, tied_module_name in zip(
+                tied_params, tied_module_names, strict=True
+            ):
+                module_size_with_ties += (
+                    module_sizes[tied_module_name] - module_sizes[tied_param]
+                )
 
             return module_size_with_ties, tied_module_names, tied_modules
 
@@ -211,7 +238,10 @@ def _load_model() -> None:
         use_fast=False,
     )
     model.eval()
-    print(f"[ming] CUDA_VISIBLE_DEVICES={os.getenv('CUDA_VISIBLE_DEVICES', '')}", flush=True)
+    print(
+        f"[ming] CUDA_VISIBLE_DEVICES={os.getenv('CUDA_VISIBLE_DEVICES', '')}",
+        flush=True,
+    )
     print(f"[ming] hf_device_map={getattr(model, 'hf_device_map', None)}", flush=True)
     print(f"[ming] input_device={_resolve_input_device()}", flush=True)
     model_loaded = True
@@ -275,7 +305,7 @@ def _generate(messages: list[dict[str, Any]]) -> str:
         )
 
     generated_ids_trimmed = [
-        out_ids[len(in_ids):]
+        out_ids[len(in_ids) :]
         for in_ids, out_ids in zip(inputs.input_ids, generated_ids, strict=True)
     ]
     output_text = processor.batch_decode(
@@ -350,7 +380,9 @@ def analyze_video():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default=CONFIG.model("ming").get("host", "0.0.0.0"))
-    parser.add_argument("--port", type=int, default=CONFIG.model("ming").get("port", 5095))
+    parser.add_argument(
+        "--port", type=int, default=CONFIG.model("ming").get("port", 5095)
+    )
     args = parser.parse_args()
 
     _load_model()

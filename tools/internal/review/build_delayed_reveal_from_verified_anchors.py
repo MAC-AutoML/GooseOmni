@@ -3,11 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
-import sys
 from pathlib import Path
 from typing import Any
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from gooseomni.benchmark.decrypto_diagnostics import (  # noqa: E402
     generate_probes_for_group,
@@ -15,18 +12,37 @@ from gooseomni.benchmark.decrypto_diagnostics import (  # noqa: E402
     write_jsonl,
 )
 
-
 MIN_REVEAL_DELAY_SEC = 30.0
 MIN_PHASE_LOCAL_SEC = 15.0
-REVEAL_KEYWORDS = {"死", "死亡", "尸体", "击杀", "杀", "刀", "倒地", "血", "kill", "killed", "death", "body"}
+REVEAL_KEYWORDS = {
+    "死",
+    "死亡",
+    "尸体",
+    "击杀",
+    "杀",
+    "刀",
+    "倒地",
+    "血",
+    "kill",
+    "killed",
+    "death",
+    "body",
+}
 REVEAL_CLAIM_TYPES = {"accusation", "location", "sighting", "defense"}
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build delayed-public-reveal candidates from human-verified hidden anchors.")
+    parser = argparse.ArgumentParser(
+        description="Build delayed-public-reveal candidates from human-verified hidden anchors."
+    )
     parser.add_argument("--input-pass-root", type=Path, required=True)
     parser.add_argument("--output-pass-root", type=Path, required=True)
-    parser.add_argument("--spec", action="append", required=True, help="event_id:target:claim_id[,claim_id...]")
+    parser.add_argument(
+        "--spec",
+        action="append",
+        required=True,
+        help="event_id:target:claim_id[,claim_id...]",
+    )
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
 
@@ -63,12 +79,20 @@ def phase_local_start_sec(row: dict[str, Any]) -> float | None:
     return float(row.get("abs_start_sec", 0.0) or 0.0) - float(int(parts[1]))
 
 
-def claim_semantically_matches_event(event: dict[str, Any], claim: dict[str, Any]) -> bool:
+def claim_semantically_matches_event(
+    event: dict[str, Any], claim: dict[str, Any]
+) -> bool:
     content = claim_text(claim)
     speaker = str(claim.get("speaker") or "")
     event_blob = event_text(event)
-    if speaker and speaker in event_blob and any(token in event_blob for token in [f"{speaker} 被", f"{speaker}的角色被", f"{speaker} 的角色在"]) and any(
-        token in content for token in ["我杀", "我刀", "我击杀", "一刀下去"]
+    if (
+        speaker
+        and speaker in event_blob
+        and any(
+            token in event_blob
+            for token in [f"{speaker} 被", f"{speaker}的角色被", f"{speaker} 的角色在"]
+        )
+        and any(token in content for token in ["我杀", "我刀", "我击杀", "一刀下去"])
     ):
         return False
     if not any(keyword in content.lower() for keyword in REVEAL_KEYWORDS):
@@ -79,23 +103,43 @@ def claim_semantically_matches_event(event: dict[str, Any], claim: dict[str, Any
         for value in event.get(key, [])
         if value
     }
-    event_names.update(name for name in ["Gemini", "baile", "beigang", "mojiang", "saoyi", "xiaolu"] if name in event_blob)
+    event_names.update(
+        name
+        for name in ["Gemini", "baile", "beigang", "mojiang", "saoyi", "xiaolu"]
+        if name in event_blob
+    )
     if event_names and any(name in content for name in event_names):
         return True
     speaker = str(claim.get("speaker") or "")
-    if speaker and speaker in event_names and any(keyword in content for keyword in ["我杀", "我刀", "我击杀", "I killed"]):
+    if (
+        speaker
+        and speaker in event_names
+        and any(
+            keyword in content for keyword in ["我杀", "我刀", "我击杀", "I killed"]
+        )
+    ):
         return True
     # Generic public death reveal is allowed only when the event itself has no stable named participant.
-    return not event_names and any(keyword in content for keyword in ["死亡", "尸体", "killed", "death"])
+    return not event_names and any(
+        keyword in content for keyword in ["死亡", "尸体", "killed", "death"]
+    )
 
 
-def validate_delayed_reveal_spec(event: dict[str, Any], target: str, claim: dict[str, Any]) -> list[str]:
+def validate_delayed_reveal_spec(
+    event: dict[str, Any], target: str, claim: dict[str, Any]
+) -> list[str]:
     errors: list[str] = []
     if target in event.get("source_povs", []):
         errors.append("target_is_source_pov")
     event_local = phase_local_start_sec(event)
-    if event_local is not None and event.get("phase_type") == "gameplay" and event_local < MIN_PHASE_LOCAL_SEC:
-        errors.append(f"anchor_event_too_close_to_gameplay_phase_start:{event_local:.1f}s")
+    if (
+        event_local is not None
+        and event.get("phase_type") == "gameplay"
+        and event_local < MIN_PHASE_LOCAL_SEC
+    ):
+        errors.append(
+            f"anchor_event_too_close_to_gameplay_phase_start:{event_local:.1f}s"
+        )
     claim_local = phase_local_start_sec(claim)
     if claim_local is not None and claim_local < MIN_PHASE_LOCAL_SEC:
         errors.append(f"reveal_claim_too_close_to_phase_start:{claim_local:.1f}s")
@@ -113,7 +157,9 @@ def validate_delayed_reveal_spec(event: dict[str, Any], target: str, claim: dict
     return errors
 
 
-def make_group(idx: int, event: dict[str, Any], target: str, reveal_claims: list[dict[str, Any]]) -> dict[str, Any]:
+def make_group(
+    idx: int, event: dict[str, Any], target: str, reveal_claims: list[dict[str, Any]]
+) -> dict[str, Any]:
     event_id = event["world_event_id"]
     reveal_claim_ids = [claim["claim_id"] for claim in reveal_claims]
     reveal_start = min(float(claim["abs_start_sec"]) for claim in reveal_claims)
@@ -136,7 +182,11 @@ def make_group(idx: int, event: dict[str, Any], target: str, reveal_claims: list
             f"{event_id} is hidden from {target} at cutoff, then later becomes publicly discussable via "
             f"claim(s) {reveal_claim_ids} after {reveal_start:.1f}s."
         ),
-        "diagnostic_families": ["false_belief", "representational_change", "delayed_public_reveal"],
+        "diagnostic_families": [
+            "false_belief",
+            "representational_change",
+            "delayed_public_reveal",
+        ],
         "template": "delayed_public_reveal",
         "quality": {
             "visibility_confidence": 0.9,
@@ -177,7 +227,9 @@ def main() -> None:
                 raise SystemExit(f"missing claim: {claim_id}")
             errors = validate_delayed_reveal_spec(event, target, claim)
             if errors:
-                raise SystemExit(f"invalid delayed reveal spec {event_id}:{target}:{claim_id}: {'; '.join(errors)}")
+                raise SystemExit(
+                    f"invalid delayed reveal spec {event_id}:{target}:{claim_id}: {'; '.join(errors)}"
+                )
             reveal_claims.append(claim)
         groups.append(make_group(len(groups) + 1, event, target, reveal_claims))
 
@@ -209,10 +261,21 @@ def main() -> None:
         quality_rows.append(quality)
 
     write_jsonl(diagnostics / "probe_groups.jsonl", groups)
-    write_jsonl(diagnostics / "probes_A_pre_reveal.jsonl", probes_by_type["A_pre_reveal_belief"])
-    write_jsonl(diagnostics / "probes_B_reconstruct.jsonl", probes_by_type["B_post_reveal_reconstruct_previous_belief"])
-    write_jsonl(diagnostics / "probes_C_false_belief.jsonl", probes_by_type["C_other_agent_false_belief"])
-    write_jsonl(diagnostics / "probes_D_perspective_taking.jsonl", probes_by_type["D_perspective_taking_prediction"])
+    write_jsonl(
+        diagnostics / "probes_A_pre_reveal.jsonl", probes_by_type["A_pre_reveal_belief"]
+    )
+    write_jsonl(
+        diagnostics / "probes_B_reconstruct.jsonl",
+        probes_by_type["B_post_reveal_reconstruct_previous_belief"],
+    )
+    write_jsonl(
+        diagnostics / "probes_C_false_belief.jsonl",
+        probes_by_type["C_other_agent_false_belief"],
+    )
+    write_jsonl(
+        diagnostics / "probes_D_perspective_taking.jsonl",
+        probes_by_type["D_perspective_taking_prediction"],
+    )
     write_jsonl(diagnostics / "hidden_gold.jsonl", hidden_gold)
     write_jsonl(diagnostics / "diagnostic_quality.jsonl", quality_rows)
     print(

@@ -160,7 +160,14 @@ def run_split(config: SplitConfig) -> list[Clip]:
         )
         planned.extend((video_path, offset_sec, clip) for clip in clips)
 
-    planned.sort(key=lambda item: (item[2].game_id, item[2].start_sec, item[2].player_id, item[2].end_sec))
+    planned.sort(
+        key=lambda item: (
+            item[2].game_id,
+            item[2].start_sec,
+            item[2].player_id,
+            item[2].end_sec,
+        )
+    )
     if config.limit_clips is not None:
         planned = planned[: config.limit_clips]
 

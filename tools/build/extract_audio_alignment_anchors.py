@@ -3,20 +3,21 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
-import sys
 from pathlib import Path
 
 import numpy as np
 import yaml
 
 ROOT = next(
-    parent for parent in Path(__file__).resolve().parents if (parent / "pyproject.toml").exists()
+    parent
+    for parent in Path(__file__).resolve().parents
+    if (parent / "pyproject.toml").exists()
 )
-if str(ROOT / "src") not in sys.path:
-    sys.path.insert(0, str(ROOT / "src"))
 
 
-def decode_envelope(path: Path, sample_rate: int = 8000, envelope_hz: int = 100) -> np.ndarray:
+def decode_envelope(
+    path: Path, sample_rate: int = 8000, envelope_hz: int = 100
+) -> np.ndarray:
     completed = subprocess.run(
         [
             "ffmpeg",
@@ -53,7 +54,9 @@ def correlate_start(search: np.ndarray, query: np.ndarray) -> tuple[int, float]:
     correlation = np.fft.irfft(spectrum, size)[: len(search) + len(query) - 1]
     valid = correlation[len(query) - 1 : len(search)]
     index = int(np.argmax(valid))
-    denominator = np.linalg.norm(search[index : index + len(query)]) * np.linalg.norm(query)
+    denominator = np.linalg.norm(search[index : index + len(query)]) * np.linalg.norm(
+        query
+    )
     score = float(valid[index] / denominator) if denominator > 1e-8 else 0.0
     return index, score
 
@@ -112,7 +115,9 @@ def local_anchors(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Extract cross-POV shared-audio anchors.")
+    parser = argparse.ArgumentParser(
+        description="Extract cross-POV shared-audio anchors."
+    )
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--reference-zero-sec", type=float, required=True)
     parser.add_argument("--offset-hints", type=Path)

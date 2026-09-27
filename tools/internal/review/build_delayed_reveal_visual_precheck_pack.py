@@ -12,17 +12,33 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from PIL import Image, ImageDraw, ImageFont
 
-from tools.internal.review.build_delayed_reveal_from_verified_anchors import validate_delayed_reveal_spec
-
+from tools.internal.review.build_delayed_reveal_from_verified_anchors import (
+    validate_delayed_reveal_spec,
+)
 
 PLAYERS = ["Gemini", "baile", "beigang", "mojiang", "saoyi", "xiaolu"]
-VIDEO_ROOT = Path("runs/gooseomni_gameplay_pass1/release_benchmark_v2/inputs/videos/g001")
-CRITICAL_TOKENS = {"死亡", "尸体", "击杀", "倒地", "被杀", "血迹", "killed", "death", "body", "blood"}
+VIDEO_ROOT = Path(
+    "runs/gooseomni_gameplay_pass1/release_benchmark_v2/inputs/videos/g001"
+)
+CRITICAL_TOKENS = {
+    "死亡",
+    "尸体",
+    "击杀",
+    "倒地",
+    "被杀",
+    "血迹",
+    "killed",
+    "death",
+    "body",
+    "blood",
+}
 MIN_LOCAL_SEC = 15.0
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build visual precheck pack for delayed-public-reveal specs.")
+    parser = argparse.ArgumentParser(
+        description="Build visual precheck pack for delayed-public-reveal specs."
+    )
     parser.add_argument("--main-pass-root", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--limit", type=int, default=60)
@@ -33,7 +49,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def phase_start(phase_id: str) -> float:
@@ -53,11 +73,15 @@ def local_start(row: dict[str, Any]) -> float | None:
 
 def midpoint_local(row: dict[str, Any]) -> float:
     phase_id = str(row["source_segment_ids"][0])
-    return ((float(row["abs_start_sec"]) + float(row["abs_end_sec"])) / 2.0) - phase_start(phase_id)
+    return (
+        (float(row["abs_start_sec"]) + float(row["abs_end_sec"])) / 2.0
+    ) - phase_start(phase_id)
 
 
 def edge_lookup(edges: list[dict[str, Any]]) -> dict[tuple[str, str], dict[str, Any]]:
-    return {(str(edge.get("event_id")), str(edge.get("player_id"))): edge for edge in edges}
+    return {
+        (str(edge.get("event_id")), str(edge.get("player_id"))): edge for edge in edges
+    }
 
 
 def load_skipped_clusters(paths: list[Path]) -> set[tuple[str, str]]:
@@ -88,7 +112,9 @@ def is_candidate_anchor(event: dict[str, Any]) -> bool:
     if float(event.get("certainty", 0.0) or 0.0) < 0.75:
         return False
     description = str(event.get("description") or "")
-    return event.get("event_type") in {"death", "player_death", "combat"} or any(token in description for token in CRITICAL_TOKENS)
+    return event.get("event_type") in {"death", "player_death", "combat"} or any(
+        token in description for token in CRITICAL_TOKENS
+    )
 
 
 def snap(video: Path, local_sec: float, out: Path) -> bool:
@@ -96,7 +122,19 @@ def snap(video: Path, local_sec: float, out: Path) -> bool:
         return False
     out.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(
-        ["ffmpeg", "-y", "-ss", f"{max(local_sec, 0.0):.2f}", "-i", str(video), "-frames:v", "1", "-q:v", "2", str(out)],
+        [
+            "ffmpeg",
+            "-y",
+            "-ss",
+            f"{max(local_sec, 0.0):.2f}",
+            "-i",
+            str(video),
+            "-frames:v",
+            "1",
+            "-q:v",
+            "2",
+            str(out),
+        ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False,
@@ -131,7 +169,15 @@ def spec_score(event: dict[str, Any], claim: dict[str, Any]) -> tuple[float, str
 
 
 def compose_quad(row: dict[str, Any], out: Path) -> bool:
-    image_paths = [Path(row[key]) for key in ["anchor_source_frame", "anchor_target_frame", "reveal_speaker_frame", "reveal_listener_frame"]]
+    image_paths = [
+        Path(row[key])
+        for key in [
+            "anchor_source_frame",
+            "anchor_target_frame",
+            "reveal_speaker_frame",
+            "reveal_listener_frame",
+        ]
+    ]
     if any(not path.exists() for path in image_paths):
         return False
     thumb_w, thumb_h = 360, 203
@@ -152,9 +198,21 @@ def compose_quad(row: dict[str, Any], out: Path) -> bool:
         cell.paste(img, ((thumb_w - img.width) // 2, 0))
         draw = ImageDraw.Draw(cell)
         draw.text((6, thumb_h + 4), labels[i][0], fill="black", font=font)
-        draw.text((6, thumb_h + 22), truncate(labels[i][1], 58), fill="black", font=font)
-        draw.text((6, thumb_h + 40), truncate(row["event_description"] if i < 2 else row["claim_text"], 58), fill="black", font=font)
-        draw.text((6, thumb_h + 58), f"{row['idx']:03d} {row['event_id']} + {row['claim_id']}", fill="black", font=font)
+        draw.text(
+            (6, thumb_h + 22), truncate(labels[i][1], 58), fill="black", font=font
+        )
+        draw.text(
+            (6, thumb_h + 40),
+            truncate(row["event_description"] if i < 2 else row["claim_text"], 58),
+            fill="black",
+            font=font,
+        )
+        draw.text(
+            (6, thumb_h + 58),
+            f"{row['idx']:03d} {row['event_id']} + {row['claim_id']}",
+            fill="black",
+            font=font,
+        )
         sheet.paste(cell, ((i % 2) * cell_w, (i // 2) * cell_h))
     out.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(out, quality=92)
@@ -175,7 +233,12 @@ def make_contact(rows: list[dict[str, Any]], output: Path, columns: int = 2) -> 
         cell = Image.new("RGB", (500, 400), "white")
         cell.paste(img, ((500 - img.width) // 2, 0))
         draw = ImageDraw.Draw(cell)
-        draw.text((6, 364), f"{row['idx']:03d} {row['event_id']} {row['claim_id']} target={row['target']}", fill="black", font=font)
+        draw.text(
+            (6, 364),
+            f"{row['idx']:03d} {row['event_id']} {row['claim_id']} target={row['target']}",
+            fill="black",
+            font=font,
+        )
         draw.text((6, 382), truncate(row["claim_text"], 76), fill="black", font=font)
         thumbs.append(cell)
     if not thumbs:
@@ -209,16 +272,25 @@ def main() -> None:
         hidden_targets = [
             player
             for player in PLAYERS
-            if edges.get((str(event.get("world_event_id")), player), {}).get("visibility") == "not_visible"
+            if edges.get((str(event.get("world_event_id")), player), {}).get(
+                "visibility"
+            )
+            == "not_visible"
         ]
         for target in hidden_targets:
             for claim in claims:
                 if target not in claim.get("heard_by", []):
                     continue
-                if local_start(claim) is not None and local_start(claim) < MIN_LOCAL_SEC:
+                if (
+                    local_start(claim) is not None
+                    and local_start(claim) < MIN_LOCAL_SEC
+                ):
                     continue
                 if not validate_delayed_reveal_spec(event, target, claim):
-                    if (str(event.get("world_event_id")), str(claim.get("claim_id"))) in skipped_clusters:
+                    if (
+                        str(event.get("world_event_id")),
+                        str(claim.get("claim_id")),
+                    ) in skipped_clusters:
                         continue
                     specs.append((event, claim, target))
 
@@ -241,17 +313,41 @@ def main() -> None:
         listener = target
         idx = len(rows) + 1
         row_dir = args.output_dir
-        anchor_source = row_dir / f"{idx:03d}_{event_id}_{claim_id}_anchor_source_{source}.jpg"
-        anchor_target = row_dir / f"{idx:03d}_{event_id}_{claim_id}_anchor_target_{target}.jpg"
-        reveal_speaker = row_dir / f"{idx:03d}_{event_id}_{claim_id}_reveal_speaker_{speaker}.jpg"
-        reveal_listener = row_dir / f"{idx:03d}_{event_id}_{claim_id}_reveal_listener_{listener}.jpg"
-        if not snap(VIDEO_ROOT / event_phase / f"{source}.mp4", midpoint_local(event), anchor_source):
+        anchor_source = (
+            row_dir / f"{idx:03d}_{event_id}_{claim_id}_anchor_source_{source}.jpg"
+        )
+        anchor_target = (
+            row_dir / f"{idx:03d}_{event_id}_{claim_id}_anchor_target_{target}.jpg"
+        )
+        reveal_speaker = (
+            row_dir / f"{idx:03d}_{event_id}_{claim_id}_reveal_speaker_{speaker}.jpg"
+        )
+        reveal_listener = (
+            row_dir / f"{idx:03d}_{event_id}_{claim_id}_reveal_listener_{listener}.jpg"
+        )
+        if not snap(
+            VIDEO_ROOT / event_phase / f"{source}.mp4",
+            midpoint_local(event),
+            anchor_source,
+        ):
             continue
-        if not snap(VIDEO_ROOT / event_phase / f"{target}.mp4", midpoint_local(event), anchor_target):
+        if not snap(
+            VIDEO_ROOT / event_phase / f"{target}.mp4",
+            midpoint_local(event),
+            anchor_target,
+        ):
             continue
-        if not snap(VIDEO_ROOT / claim_phase / f"{speaker}.mp4", midpoint_local(claim), reveal_speaker):
+        if not snap(
+            VIDEO_ROOT / claim_phase / f"{speaker}.mp4",
+            midpoint_local(claim),
+            reveal_speaker,
+        ):
             continue
-        if not snap(VIDEO_ROOT / claim_phase / f"{listener}.mp4", midpoint_local(claim), reveal_listener):
+        if not snap(
+            VIDEO_ROOT / claim_phase / f"{listener}.mp4",
+            midpoint_local(claim),
+            reveal_listener,
+        ):
             continue
         row = {
             "idx": idx,
@@ -284,8 +380,16 @@ def main() -> None:
             break
 
     make_contact(rows, args.output_dir / "visual_precheck_contact.jpg")
-    (args.output_dir / "manifest.json").write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({"ok": True, "output_dir": args.output_dir.as_posix(), "specs": len(rows)}, ensure_ascii=False, indent=2))
+    (args.output_dir / "manifest.json").write_text(
+        json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    print(
+        json.dumps(
+            {"ok": True, "output_dir": args.output_dir.as_posix(), "specs": len(rows)},
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

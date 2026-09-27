@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..schema import CheckerFinding, VALID_PLAYERS
+from ..schema import VALID_PLAYERS, CheckerFinding
 
 
 def run_consistency_checker(global_annotation: dict[str, Any]) -> list[CheckerFinding]:
@@ -15,10 +15,11 @@ def run_consistency_checker(global_annotation: dict[str, Any]) -> list[CheckerFi
                 checker_name="consistency",
                 annotation_id=item.get("global_event_id"),
                 verdict="fail" if invalid else "pass",
-                reason=f"invalid source_pov values: {invalid}" if invalid else "source_pov values are valid",
+                reason=f"invalid source_pov values: {invalid}"
+                if invalid
+                else "source_pov values are valid",
                 suggested_fix="remove invalid source_pov values" if invalid else None,
                 confidence=0.8,
             )
         )
     return findings
-

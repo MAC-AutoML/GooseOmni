@@ -205,7 +205,13 @@ class MockBackend(BaseBackend):
                     "segment_id": "mock_segment",
                     "target_player": "Gemini",
                     "cutoff_abs_sec": 1.0,
-                    "knows": [{"content": "mock known fact", "basis": "direct_visual", "source_ids": ["local_e001"]}],
+                    "knows": [
+                        {
+                            "content": "mock known fact",
+                            "basis": "direct_visual",
+                            "source_ids": ["local_e001"],
+                        }
+                    ],
                     "does_not_know": [],
                     "believes_or_suspects": [],
                     "trust_state": {},
@@ -287,22 +293,35 @@ class QwenOmniBackend(BaseBackend):
 
     def annotate_audio(self, video_path: Path, prompt: str) -> str:
         if self._local_server_url:
-            return self._local_video_call(video_path, prompt, use_video=False, use_audio=True)
+            return self._local_video_call(
+                video_path, prompt, use_video=False, use_audio=True
+            )
         return self.annotate_video(video_path, prompt)
 
     def annotate_text(self, prompt: str) -> str:
         if self._local_server_url:
-            raise ValueError("Local Qwen3-Omni server requires annotate_video with a segment context video")
+            raise ValueError(
+                "Local Qwen3-Omni server requires annotate_video with a segment context video"
+            )
         return self._chat(prompt)
 
-    def _local_video_call(self, video_path: Path, prompt: str, *, use_video: bool = True, use_audio: bool = True) -> str:
+    def _local_video_call(
+        self,
+        video_path: Path,
+        prompt: str,
+        *,
+        use_video: bool = True,
+        use_audio: bool = True,
+    ) -> str:
         path = Path(video_path)
         if not path.exists():
             raise FileNotFoundError(f"video_path not found: {path}")
         server_url = self._local_server_url
         if not server_url:
             raise ValueError("Missing local Qwen3-Omni server URL")
-        answer = OmniHttpClient(server_url).call_api(str(path), prompt, use_video=use_video, use_audio=use_audio)
+        answer = OmniHttpClient(server_url).call_api(
+            str(path), prompt, use_video=use_video, use_audio=use_audio
+        )
         if answer is None:
             raise RuntimeError("Qwen3-Omni local server returned no answer")
         return answer
@@ -312,7 +331,9 @@ class QwenOmniBackend(BaseBackend):
 
         api_key = os.getenv(self.api_key_env)
         if not api_key:
-            raise ValueError(f"Missing API key environment variable: {self.api_key_env}")
+            raise ValueError(
+                f"Missing API key environment variable: {self.api_key_env}"
+            )
         client = OpenAI(api_key=api_key, base_url=self.base_url)
         response = client.chat.completions.create(
             model=self.model,
@@ -320,7 +341,6 @@ class QwenOmniBackend(BaseBackend):
             temperature=0,
         )
         return response.choices[0].message.content or ""
-
 
 
 def create_backend(

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+
 import sys
 from pathlib import Path as _Path
 
@@ -17,12 +18,11 @@ import os
 import signal
 import subprocess
 import sys
-import time
 import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 from urllib.parse import urlparse
 
 import requests
@@ -33,7 +33,6 @@ if str(ROOT) not in sys.path:
 
 from gooseomni.config.settings import CONFIG
 from gooseomni.models.pipeline.modality import modality_metadata, output_path_for
-
 
 LOCAL_MODEL_SERVER_SCRIPT = {
     "qwen3_omni": "src/gooseomni/models/model_server/qwen3_omni/qwen3_omni_server.py",
@@ -124,8 +123,8 @@ def wait_server_ready(
     base_url: str,
     timeout_sec: int,
     interval_sec: float,
-    proc: Optional[subprocess.Popen] = None,
-    log_path: Optional[Path] = None,
+    proc: subprocess.Popen | None = None,
+    log_path: Path | None = None,
 ) -> bool:
     deadline = time.time() + timeout_sec
     while time.time() < deadline:
@@ -157,13 +156,13 @@ def _safe_read_progress(result_file: Path) -> tuple[int, int, int, int, int, str
 
 def run_benchmark(
     model_name: str,
-    max_samples: Optional[int],
+    max_samples: int | None,
     timeout_sec: int,
     output_path: Path,
     resume: bool,
     progress_interval: int,
     level: int,
-    server_url: Optional[str] = None,
+    server_url: str | None = None,
 ) -> tuple[int, str]:
     runner = "run_benchmark.py" if level == 1 else "run_benchmark_level2.py"
     cmd = [
@@ -361,7 +360,7 @@ def main() -> None:
     test_log = out_dir / "test.log"
 
     started_by_script = False
-    server_proc: Optional[subprocess.Popen] = None
+    server_proc: subprocess.Popen | None = None
 
     status = "FAIL"
     exit_code = 1

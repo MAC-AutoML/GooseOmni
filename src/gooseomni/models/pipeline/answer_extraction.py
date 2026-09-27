@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Iterable
+from collections.abc import Iterable
 
 
 def extract_choice(text: str, choices: Iterable[str]) -> str:
@@ -43,8 +43,15 @@ def _last_assistant_region(text: str) -> str:
     if last_match is None:
         return ""
     region = text[last_match.end() :].strip()
-    region = re.split(r"\n(?:user|system|assistant)\s*:?\s*(?:\n|$)", region, maxsplit=1, flags=re.IGNORECASE)[0]
-    region = re.split(r"<\|im_end\|>|<\|im_start\|>", region, maxsplit=1, flags=re.IGNORECASE)[0]
+    region = re.split(
+        r"\n(?:user|system|assistant)\s*:?\s*(?:\n|$)",
+        region,
+        maxsplit=1,
+        flags=re.IGNORECASE,
+    )[0]
+    region = re.split(
+        r"<\|im_end\|>|<\|im_start\|>", region, maxsplit=1, flags=re.IGNORECASE
+    )[0]
     return region.strip()
 
 
