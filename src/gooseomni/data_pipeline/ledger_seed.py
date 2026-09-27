@@ -5,7 +5,7 @@ import math
 from pathlib import Path
 from typing import Any
 
-from .v2 import write_jsonl
+from .release_pipeline import write_jsonl
 
 
 def _load(path: Path) -> list[dict[str, Any]]:

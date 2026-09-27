@@ -63,7 +63,7 @@ ingest → sync/align → segment/episode → perception
 → trial build → review → validate → package
 ```
 
-普通 v2 数据流水线：
+标准数据流水线：
 
 ```bash
 uv run gooseomni data validate-input \

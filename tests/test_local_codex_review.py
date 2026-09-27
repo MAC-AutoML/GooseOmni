@@ -8,7 +8,7 @@ from gooseomni.data_pipeline.local_review import (
     apply_local_review,
     prepare_local_review,
 )
-from gooseomni.data_pipeline.v2 import read_jsonl, write_jsonl
+from gooseomni.data_pipeline.release_pipeline import read_jsonl, write_jsonl
 
 
 def _trajectory_queue(tmp_path):

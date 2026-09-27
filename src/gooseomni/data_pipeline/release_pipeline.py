@@ -200,7 +200,7 @@ def build_manifest(root: Path, source_root: Path) -> dict[str, Any]:
     }
 
 
-def build_v2(
+def build_release(
     target: Path,
     source: Path | None = None,
     dataset_root: Path | None = None,
@@ -257,7 +257,7 @@ def _probe_media(path: Path) -> tuple[bool, bool]:
     return "video" in types, "audio" in types
 
 
-def validate_v2(root: Path, probe_media: bool = True) -> dict[str, Any]:
+def validate_release(root: Path, probe_media: bool = True) -> dict[str, Any]:
     issues: list[str] = []
     manifest_path = root / "manifest.json"
     if not manifest_path.is_file():
@@ -266,7 +266,7 @@ def validate_v2(root: Path, probe_media: bool = True) -> dict[str, Any]:
     actual = build_manifest(root, Path(str(recorded.get("source", "unknown"))))
     expected_counts = recorded.get("validation", {}).get("line_counts", COUNT_PATHS)
     if actual["validation"]["line_counts"] != expected_counts:
-        issues.append("line counts do not match the recorded v2 contract")
+        issues.append("line counts do not match the recorded release contract")
     if actual["validation"]["public_file_leak_hits"]:
         issues.append("private markers found in public files")
     if recorded.get("files") != actual.get("files"):
@@ -281,7 +281,7 @@ def validate_v2(root: Path, probe_media: bool = True) -> dict[str, Any]:
         )
         if _has_human_verified_gold(value):
             issues.append(
-                f"automatic v2 contains human_verified: {path.relative_to(root)}"
+                f"automatic release contains human_verified: {path.relative_to(root)}"
             )
     raw_rows = read_jsonl(root / "public/raw_video_smoke/raw_video_smoke.jsonl")
     media_results = []

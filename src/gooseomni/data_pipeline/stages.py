@@ -37,7 +37,7 @@ from .raw_stages import (
 from .raw_stages import (
     trial_build_stage as raw_trial_build_stage,
 )
-from .v2 import build_v2, validate_v2
+from .release_pipeline import build_release, validate_release
 
 STAGE_NAMES = (
     "ingest",
@@ -120,7 +120,7 @@ def ingest_stage(context: StageContext) -> dict[str, Any]:
 def _migration_stage(context: StageContext) -> dict[str, Any]:
     source = context.config.source_benchmark
     if source is None or not source.is_dir():
-        raise FileNotFoundError("source_benchmark is required for v2 migration")
+        raise FileNotFoundError("source_benchmark is required for release migration")
     return {
         "mode": "frozen_v1_migration",
         "source_benchmark": str(source),
@@ -132,10 +132,10 @@ def trial_build_stage(context: StageContext) -> dict[str, Any]:
     if context.config.source_benchmark is None:
         raise RuntimeError(
             "raw-data trial build must be executed after the existing annotation/oracle "
-            "stages; configure source_benchmark only for the frozen v1-to-v2 migration"
+            "stages; configure source_benchmark only for the frozen source-to-release migration"
         )
     staging = context.run_root / "benchmark_staging"
-    return build_v2(
+    return build_release(
         staging,
         source=context.config.source_benchmark,
         dataset_root=context.config.dataset_root,
@@ -143,9 +143,9 @@ def trial_build_stage(context: StageContext) -> dict[str, Any]:
 
 
 def validate_stage(context: StageContext) -> dict[str, Any]:
-    report = validate_v2(context.run_root / "benchmark_staging", probe_media=True)
+    report = validate_release(context.run_root / "benchmark_staging", probe_media=True)
     if not report["ok"]:
-        raise RuntimeError(f"v2 validation failed: {report['issues']}")
+        raise RuntimeError(f"release validation failed: {report['issues']}")
     return report
 
 
@@ -166,10 +166,10 @@ def package_stage(context: StageContext) -> dict[str, Any]:
         published_link = destination / relative
         published_link.unlink()
         published_link.symlink_to(os.path.relpath(target, published_link.parent))
-    report = validate_v2(destination, probe_media=False)
+    report = validate_release(destination, probe_media=False)
     if not report["ok"]:
         shutil.rmtree(destination, ignore_errors=True)
-        raise RuntimeError(f"published v2 validation failed: {report['issues']}")
+        raise RuntimeError(f"published release validation failed: {report['issues']}")
     return {"benchmark_root": str(destination), "validation": report}
 
 

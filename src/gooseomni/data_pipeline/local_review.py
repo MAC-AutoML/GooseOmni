@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .provenance import sha256_file, stable_hash, write_json
-from .v2 import read_jsonl, write_jsonl
+from .release_pipeline import read_jsonl, write_jsonl
 
 REVIEW_KINDS = {"trajectory", "tom"}
 

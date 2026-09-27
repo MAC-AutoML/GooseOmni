@@ -18,8 +18,8 @@ from gooseomni.benchmark.decrypto_export import (
 )
 
 from .provenance import sha256_tree, stable_hash
-from .release import assemble_dynamic_v2
-from .v2 import read_jsonl, write_jsonl
+from .release import assemble_release
+from .release_pipeline import read_jsonl, write_jsonl
 
 
 def _cache(context: Any, name: str) -> Path | None:
@@ -328,7 +328,7 @@ def codex_review_stage(context: Any) -> dict[str, Any]:
 
 
 def trial_build_stage(context: Any) -> dict[str, Any]:
-    return assemble_dynamic_v2(
+    return assemble_release(
         context.run_root / "benchmark_staging",
         context.run_root / "candidates",
         context.run_root / "annotations",

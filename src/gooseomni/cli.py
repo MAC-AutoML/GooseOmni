@@ -16,8 +16,8 @@ from gooseomni.data_pipeline.local_review import (
     apply_local_review,
     prepare_local_review,
 )
+from gooseomni.data_pipeline.release_pipeline import validate_release
 from gooseomni.data_pipeline.runner import load_run_manifest
-from gooseomni.data_pipeline.v2 import validate_v2
 from gooseomni.evaluation.reports import write_report
 from gooseomni.evaluation.runner import (
     EvaluationConfig,
@@ -263,7 +263,7 @@ def _run_data_command(args: argparse.Namespace) -> int:
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     if args.action == "validate" and args.run:
-        result = validate_v2(args.run / "benchmark_staging", probe_media=True)
+        result = validate_release(args.run / "benchmark_staging", probe_media=True)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0 if result["ok"] else 1
     config_path = getattr(args, "config", None)
