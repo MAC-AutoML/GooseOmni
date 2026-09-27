@@ -43,7 +43,7 @@ VISIBILITY_VALUES = {"pov_visible", "public", "heard_speech", "inferred", "hidde
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Validate Omni Goose benchmark release v2.")
+    parser = argparse.ArgumentParser(description="Validate Omni Goose benchmark release.")
     parser.add_argument("--release-root", default=Path("runs/gooseomni_gameplay_pass1/release_benchmark_v2"), type=Path)
     parser.add_argument("--game-id", default="g001")
     parser.add_argument("--output", default=None, type=Path)

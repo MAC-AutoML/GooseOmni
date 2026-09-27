@@ -14,8 +14,8 @@ from gooseomni.models.model_server.local_common.timestamp_overlay import (
 
 from .information_state import validate_claim_hearing
 from .provenance import write_json
+from .release_pipeline import read_jsonl, write_jsonl
 from .trajectory import fuse_trajectory
-from .v2 import read_jsonl, write_jsonl
 
 PUBLIC_VISUAL_TYPES = {"meeting", "vote", "body_report", "action_outcome"}
 

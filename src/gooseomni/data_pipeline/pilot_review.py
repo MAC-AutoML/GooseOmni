@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from .pilot_common import cache_path
-from .v2 import read_jsonl, write_jsonl
+from .release_pipeline import read_jsonl, write_jsonl
 
 
 def _frame_packs(run_root: Path, rows: list[dict[str, Any]]) -> list[str]:

@@ -129,7 +129,45 @@ def main() -> None:
                 json.dumps(ann, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
             )
             annotations_written += 1
-    readme = f"""# Omni Goose Gameplay-Aligned Release v1\n\nTop-level structure:\n\n```text\nrelease_gameplay_aligned_v1/\n├── README.md\n├── videos/\n└── annotations/\n```\n\nEach video has exactly one matching annotation JSON:\n\n```text\nvideos/g001/{{phase_id}}/{{player_id}}.mp4\nannotations/g001/{{phase_id}}/{{player_id}}.json\n```\n\nThis release is organized by real gameplay/meeting phases, not fixed 90-second windows. The old 90-second aligned clips were used only as Qwen3-Omni review windows for discovering semantic phase boundaries.\n\nTime rule:\n\n```text\nabs_sec = aligned_start_sec + local_sec\n```\n\nCounts:\n\n- phases: {len(phases)}\n- videos: {sum(len(p.get("povs", [])) for p in phases)}\n- annotations: {annotations_written}\n- missing_qwen_annotations_filled_for_review: {len(missing_annotations)}\n\nAnnotation fields include player_status, role_and_goal, gameplay_trace, utterances, private_memory, belief_state, and tom_questions. Labels are Qwen3-Omni weak annotations and require human verification before being claimed as human-verified.\n"""
+    readme = f"""# Omni Goose Gameplay-Aligned Release v1
+
+Top-level structure:
+
+```text
+release_gameplay_aligned_v1/
+├── README.md
+├── videos/
+└── annotations/
+```
+
+Each video has exactly one matching annotation JSON:
+
+```text
+videos/g001/{{phase_id}}/{{player_id}}.mp4
+annotations/g001/{{phase_id}}/{{player_id}}.json
+```
+
+This release is organized by real gameplay/meeting phases, not fixed 90-second windows.
+The old 90-second aligned clips were used only as Qwen3-Omni review windows for
+ discovering semantic phase boundaries.
+
+Time rule:
+
+```text
+abs_sec = aligned_start_sec + local_sec
+```
+
+Counts:
+
+- phases: {len(phases)}
+- videos: {sum(len(p.get("povs", [])) for p in phases)}
+- annotations: {annotations_written}
+- missing_qwen_annotations_filled_for_review: {len(missing_annotations)}
+
+Annotation fields include player_status, role_and_goal, gameplay_trace, utterances,
+private_memory, belief_state, and tom_questions. Labels are Qwen3-Omni weak annotations
+and require human verification before being claimed as human-verified.
+"""
     (args.output_dir / "README.md").write_text(readme, encoding="utf-8")
     # Keep release top-level limited to README.md, videos/, and annotations/.
     # Detailed packaging counts stay in README.md to avoid extra public entrypoints.

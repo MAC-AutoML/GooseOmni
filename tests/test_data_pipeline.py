@@ -14,6 +14,7 @@ from gooseomni.data_pipeline.local_review import (
 )
 from gooseomni.data_pipeline.provenance import sha256_tree
 from gooseomni.data_pipeline.release import _reviewed_rows
+from gooseomni.data_pipeline.release_pipeline import _has_human_verified_gold
 from gooseomni.data_pipeline.runner import DataPipelineRunner
 from gooseomni.data_pipeline.stages import (
     PILOT_STAGE_NAMES,
@@ -21,7 +22,6 @@ from gooseomni.data_pipeline.stages import (
     stage_names,
     validate_judgement,
 )
-from gooseomni.data_pipeline.v2 import _has_human_verified_gold
 
 
 def _config(tmp_path: Path, duplicate: bool = False) -> Path:

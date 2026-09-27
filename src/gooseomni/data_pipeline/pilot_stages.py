@@ -16,6 +16,7 @@ from .pilot_perception import perceive_audio_stage, perceive_visual_stage
 from .pilot_review import codex_review_stage
 from .pilot_validation import validate_pilot
 from .provenance import sha256_tree, stable_hash, write_json
+from .release_pipeline import read_jsonl, write_jsonl
 from .reviewed_trials import accepted_trials
 from .tom_trials import (
     TOM_LAYERS,
@@ -26,7 +27,6 @@ from .tom_trials import (
     subject_only_evidence,
 )
 from .trajectory_review import review_and_write_trajectory
-from .v2 import read_jsonl, write_jsonl
 
 
 def _read_records(path: Path, list_key: str | None = None) -> list[dict[str, Any]]:

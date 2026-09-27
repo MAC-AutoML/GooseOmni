@@ -6,7 +6,7 @@ from typing import Any
 from gooseomni.benchmark.agentic_midgame import build_agentic_midgame_prediction
 
 from .provenance import write_json
-from .v2 import (
+from .release_pipeline import (
     _model_verified,
     _repair_raw_video,
     build_manifest,
@@ -76,7 +76,7 @@ def _reviewed_rows(
     return public_rows, gold_rows, hidden_rows
 
 
-def assemble_dynamic_v2(
+def assemble_release(
     target: Path,
     candidate_root: Path,
     annotation_root: Path,
@@ -84,7 +84,7 @@ def assemble_dynamic_v2(
     decisions_path: Path,
     agentic_limit: int = 160,
 ) -> dict[str, Any]:
-    """Assemble a new v2 release from reviewed, run-local candidates."""
+    """Assemble a new benchmark release from reviewed, run-local candidates."""
     if target.exists():
         raise FileExistsError(f"refusing to overwrite candidate benchmark: {target}")
     decisions = _decision_map(decisions_path)

@@ -39,12 +39,12 @@ WORKFLOW_KEYS = {
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Package Omni Goose gameplay release as benchmark-friendly v2 layout.")
+    parser = argparse.ArgumentParser(description="Package Omni Goose gameplay as a benchmark release.")
     parser.add_argument("--source-release", default=Path("runs/gooseomni_gameplay_pass1/release_gameplay_aligned_v1"), type=Path)
     parser.add_argument("--output-dir", default=Path("runs/gooseomni_gameplay_pass1/release_benchmark_v2"), type=Path)
     parser.add_argument("--game-id", default="g001")
     parser.add_argument("--overwrite", action="store_true")
-    parser.add_argument("--update-existing", action="store_true", help="Rewrite JSON/README in an existing v2 release without deleting videos.")
+    parser.add_argument("--update-existing", action="store_true", help="Rewrite JSON/README in an existing benchmark release without deleting videos.")
     return parser.parse_args()
 
 

@@ -36,7 +36,7 @@ class DataPipelineConfig:
     source_benchmark: Path | None = None
     dataset_root: Path = PATHS.root / "data/gooseomni"
     stage_cache: dict[str, Path] | None = None
-    pipeline: str = "legacy_v2"
+    pipeline: str = "release"
     reference_player: str = "Gemini"
     minimum_alignment_anchors: int = 3
     median_residual_limit_sec: float = 1.0
@@ -160,7 +160,7 @@ def load_data_config(path: str | Path) -> DataPipelineConfig:
             str(key): _rooted_path(value)
             for key, value in (payload.get("cache", {}) or {}).items()
         },
-        pipeline=str(payload.get("pipeline", "legacy_v2")),
+        pipeline=str(payload.get("pipeline", "release")),
         reference_player=str(alignment.get("reference_player", "Gemini")),
         minimum_alignment_anchors=int(alignment.get("minimum_anchors_per_episode", 3)),
         median_residual_limit_sec=float(

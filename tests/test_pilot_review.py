@@ -5,9 +5,9 @@ from types import SimpleNamespace
 import pytest
 
 from gooseomni.data_pipeline.pilot_review import codex_review_stage
+from gooseomni.data_pipeline.release_pipeline import read_jsonl, write_jsonl
 from gooseomni.data_pipeline.reviewed_trials import accepted_trials
 from gooseomni.data_pipeline.tom_trials import public_trial
-from gooseomni.data_pipeline.v2 import read_jsonl, write_jsonl
 
 
 def test_codex_review_is_group_level_and_keeps_hidden_evidence_private(
