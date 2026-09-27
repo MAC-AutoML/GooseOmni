@@ -170,14 +170,18 @@ uv run python tools/annotation/run_qwen_annotation.py --backend mock --limit 3
 
 ## 5. 后处理
 
+后处理统一由数据流水线编排，输出位于该 run 的 `artifacts/fusion/`，
+不再使用 `data/processed/` 根目录下的全局事件、信息状态和候选题旧产物。
+在前置阶段已完成的同一个 run 上执行：
+
 ```bash
-uv run python tools/build/build_meeting_utterances.py
-uv run python tools/build/build_information_states.py
-uv run python tools/build/merge_global_events.py
-uv run python tools/build/build_candidate_trials.py
+uv run gooseomni data build \
+  --config configs/datasets/gooseomni_v2_raw.yaml \
+  --from-stage event_fusion --to-stage oracle_and_belief --resume
 ```
 
-这些脚本生成的是初步结构化结果，后续可再替换为 Qwen 辅助融合版本。
+`tools/build/` 中的单阶段调试脚本必须显式指定输入和输出路径；
+`annotate postprocess` 批量旧入口已移除。严格 Pilot 请使用其独立配置和阶段。
 
 `merge_global_events` 和候选 trial 结果只是候选/初稿。最终回合组织必须经过 Qwen3-Omni 语义边界融合和人工抽查；没有清晰证据的边界应标为待复核，不能自动落成最终标注。
 

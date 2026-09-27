@@ -12,10 +12,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Build meeting utterances from POV events."
     )
-    parser.add_argument("--pov-events-dir", default="annotations/pov_events", type=Path)
+    parser.add_argument("--pov-events-dir", required=True, type=Path)
     parser.add_argument(
         "--output-path",
-        default="data/processed/meeting_utterances.json",
+        required=True,
         type=Path,
     )
     return parser.parse_args()

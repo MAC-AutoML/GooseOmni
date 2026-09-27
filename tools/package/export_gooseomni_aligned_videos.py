@@ -29,17 +29,17 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--manifest-path",
-        default="data/processed/clip_manifest_manual_sync_v1.jsonl",
+        default="data/processed/clip_manifest.jsonl",
         type=Path,
     )
     parser.add_argument(
         "--sync-offsets",
-        default="data/processed/sync_offsets_manual_v1.json",
+        default="data/processed/sync_offsets.json",
         type=Path,
     )
     parser.add_argument(
         "--round-boundaries-dir",
-        default="annotations/round_boundaries_manual_sync_v1",
+        default="annotations/round_boundaries",
         type=Path,
     )
     parser.add_argument("--raw-dir", default="data/raw", type=Path)

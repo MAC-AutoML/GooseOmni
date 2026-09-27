@@ -15,9 +15,9 @@ export PYTHONPATH="${SLURM_SUBMIT_DIR:-/public/home/xty/workdir/omni_goose}/src:
 cd "$SLURM_SUBMIT_DIR"
 mkdir -p "configs/slurm/logs" "annotations"
 
-MANIFEST_PATH="${MANIFEST_PATH:-data/processed/clip_manifest_manual_sync_v1.jsonl}"
-ANNOTATION_DIR="${ANNOTATION_DIR:-annotations/round_boundaries_manual_sync_v1}"
-ERROR_DIR="${ERROR_DIR:-annotations/round_boundary_errors_manual_sync_v1}"
+MANIFEST_PATH="${MANIFEST_PATH:-data/processed/clip_manifest.jsonl}"
+ANNOTATION_DIR="${ANNOTATION_DIR:-annotations/round_boundaries}"
+ERROR_DIR="${ERROR_DIR:-annotations/round_boundary_errors}"
 MODEL_PATH="${MODEL_PATH:-/publicssd/xty/models/Qwen3-Omni-30B-A3B-Instruct}"
 SERVER_HOST="${SERVER_HOST:-127.0.0.1}"
 SERVER_PORT="${SERVER_PORT:-$((5140 + (${SLURM_JOB_ID:-0} % 50)))}"

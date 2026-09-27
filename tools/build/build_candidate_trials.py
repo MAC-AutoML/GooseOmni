@@ -13,16 +13,16 @@ def parse_args() -> argparse.Namespace:
         description="Build initial Theory-of-Mind candidate trials."
     )
     parser.add_argument(
-        "--global-events", default="data/processed/global_events.json", type=Path
+        "--global-events", required=True, type=Path
     )
     parser.add_argument(
         "--information-states",
-        default="data/processed/information_states.json",
+        required=True,
         type=Path,
     )
     parser.add_argument(
         "--output-path",
-        default="data/processed/candidate_trials.json",
+        required=True,
         type=Path,
     )
     return parser.parse_args()
