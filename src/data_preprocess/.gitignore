@@ -1,0 +1,8 @@
+# Local artifacts under this package
+workspace/
+assets/start_template.png
+**/alignment_review/
+**/*.mp4
+**/__pycache__/
+*.pyc
+.pytest_cache/
